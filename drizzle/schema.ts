@@ -25,4 +25,20 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * 生成履歴テーブル
+ * ユーザーが生成した職務経歴書の最適化結果を保存
+ */
+export const resumes = mysqlTable("resumes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  resumeText: text("resumeText").notNull(),
+  jobDescription: text("jobDescription").notNull(),
+  generatedContent: text("generatedContent").notNull(), // JSON string
+  customItems: text("customItems"), // JSON string for custom field definitions
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Resume = typeof resumes.$inferSelect;
+export type InsertResume = typeof resumes.$inferInsert;

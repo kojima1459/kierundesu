@@ -1,9 +1,19 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
+import { saveResume, getUserResumes, getResumeById, deleteResume } from "./db";
+
+const STANDARD_ITEMS = [
+  "summary",
+  "career_history",
+  "motivation",
+  "self_pr",
+  "why_company",
+  "what_to_achieve",
+] as const;
 
 export const appRouter = router({
   system: systemRouter,
@@ -19,34 +29,48 @@ export const appRouter = router({
   }),
 
   resume: router({
-    generate: publicProcedure
+    generate: protectedProcedure
       .input(
         z.object({
           resumeText: z.string().min(1, "職務経歴書を入力してください"),
           jobDescription: z.string().min(1, "求人情報を入力してください"),
-          outputItems: z.array(z.enum(["summary", "motivation", "self_pr", "why_company"])),
-          charLimits: z.object({
-            summary: z.number().optional(),
-            motivation: z.number().optional(),
-            self_pr: z.number().optional(),
-            why_company: z.number().optional(),
-          }),
+          outputItems: z.array(z.string()),
+          charLimits: z.record(z.string(), z.number()),
+          customItems: z
+            .array(
+              z.object({
+                key: z.string(),
+                label: z.string(),
+                charLimit: z.number().optional(),
+              })
+            )
+            .optional(),
+          saveHistory: z.boolean().optional(),
         })
       )
-      .mutation(async ({ input }) => {
-        const { resumeText, jobDescription, outputItems, charLimits } = input;
+      .mutation(async ({ input, ctx }) => {
+        const { resumeText, jobDescription, outputItems, charLimits, customItems, saveHistory } = input;
 
         const itemLabels: Record<string, string> = {
           summary: "職務要約",
+          career_history: "職務経歴",
           motivation: "志望動機",
           self_pr: "自己PR",
           why_company: "なぜ御社か",
+          what_to_achieve: "企業で実現したいこと",
         };
+
+        // Add custom item labels
+        if (customItems) {
+          customItems.forEach((item) => {
+            itemLabels[item.key] = item.label;
+          });
+        }
 
         const outputInstructions = outputItems
           .map((item) => {
             const label = itemLabels[item] || item;
-            const limit = charLimits[item as keyof typeof charLimits];
+            const limit = charLimits[item];
             return `- ${label}: ${limit ? `${limit}文字以内` : "適切な長さ"}`;
           })
           .join("\n");
@@ -120,30 +144,45 @@ ${outputItems.map((item) => `"${item}"`).join(", ")}
         }
 
         const result = JSON.parse(content);
+
+        // Save to history if requested
+        if (saveHistory && ctx.user) {
+          await saveResume({
+            userId: ctx.user.id,
+            resumeText,
+            jobDescription,
+            generatedContent: JSON.stringify(result),
+            customItems: customItems ? JSON.stringify(customItems) : null,
+          });
+        }
+
         return result;
       }),
 
-    regenerate: publicProcedure
+    regenerate: protectedProcedure
       .input(
         z.object({
-          item: z.enum(["summary", "motivation", "self_pr", "why_company"]),
+          item: z.string(),
           resumeText: z.string().min(1),
           jobDescription: z.string().min(1),
           charLimit: z.number().optional(),
           previousContent: z.string().optional(),
+          itemLabel: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {
-        const { item, resumeText, jobDescription, charLimit, previousContent } = input;
+        const { item, resumeText, jobDescription, charLimit, previousContent, itemLabel } = input;
 
-        const itemLabels: Record<string, string> = {
+        const defaultLabels: Record<string, string> = {
           summary: "職務要約",
+          career_history: "職務経歴",
           motivation: "志望動機",
           self_pr: "自己PR",
           why_company: "なぜ御社か",
+          what_to_achieve: "企業で実現したいこと",
         };
 
-        const label = itemLabels[item] || item;
+        const label = itemLabel || defaultLabels[item] || item;
 
         const prompt = `あなたは職務経歴書最適化の専門家です。
 
@@ -207,6 +246,108 @@ JSON形式で出力してください:
 
         const result = JSON.parse(content);
         return { content: result.content };
+      }),
+
+    // History management
+    history: router({
+      list: protectedProcedure.query(async ({ ctx }) => {
+        const resumes = await getUserResumes(ctx.user.id);
+        return resumes.map((resume) => ({
+          id: resume.id,
+          createdAt: resume.createdAt,
+          resumeTextPreview: resume.resumeText.substring(0, 100) + "...",
+          jobDescriptionPreview: resume.jobDescription.substring(0, 100) + "...",
+        }));
+      }),
+
+      get: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .mutation(async ({ input, ctx }) => {
+          const resume = await getResumeById(input.id, ctx.user.id);
+          if (!resume) {
+            throw new Error("履歴が見つかりません");
+          }
+          return {
+            id: resume.id,
+            resumeText: resume.resumeText,
+            jobDescription: resume.jobDescription,
+            generatedContent: JSON.parse(resume.generatedContent),
+            customItems: resume.customItems ? JSON.parse(resume.customItems) : null,
+            createdAt: resume.createdAt,
+          };
+        }),
+
+      delete: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .mutation(async ({ input, ctx }) => {
+          const success = await deleteResume(input.id, ctx.user.id);
+          if (!success) {
+            throw new Error("履歴の削除に失敗しました");
+          }
+          return { success };
+        }),
+    }),
+
+    translate: protectedProcedure
+      .input(
+        z.object({
+          text: z.string().min(1),
+          itemLabel: z.string(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { text, itemLabel } = input;
+
+        const prompt = `以下の日本語の「${itemLabel}」を英語に翻訳してください。
+
+原文:
+${text}
+
+条件:
+1. ビジネス英語として自然で洗練された表現を使用
+2. 職務経歴書で使われる専門用語を適切に使用
+3. 原文のニュアンスを保ちながら翻訳
+
+出力形式:
+JSON形式で出力してください:
+{
+  "translation": "翻訳された英語テキスト"
+}`;
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "translation",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  translation: {
+                    type: "string",
+                    description: "翻訳された英語テキスト",
+                  },
+                },
+                required: ["translation"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content || typeof content !== "string") {
+          throw new Error("翻訳に失敗しました");
+        }
+
+        const result = JSON.parse(content);
+        return { translation: result.translation };
       }),
   }),
 });

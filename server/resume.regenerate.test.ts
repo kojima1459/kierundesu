@@ -17,6 +17,33 @@ vi.mock("./_core/llm", () => ({
   })),
 }));
 
+type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
+
+function createAuthContext(): TrpcContext {
+  const user: AuthenticatedUser = {
+    id: 1,
+    openId: "sample-user",
+    email: "sample@example.com",
+    name: "Sample User",
+    loginMethod: "manus",
+    role: "user",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSignedIn: new Date(),
+  };
+
+  return {
+    user,
+    req: {
+      protocol: "https",
+      headers: {},
+    } as TrpcContext["req"],
+    res: {
+      clearCookie: () => {},
+    } as TrpcContext["res"],
+  };
+}
+
 function createPublicContext(): TrpcContext {
   return {
     user: undefined,
@@ -32,7 +59,7 @@ function createPublicContext(): TrpcContext {
 
 describe("resume.regenerate", () => {
   it("正常に項目を再生成できる", async () => {
-    const ctx = createPublicContext();
+    const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const result = await caller.resume.regenerate({

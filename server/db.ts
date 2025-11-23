@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, resumes, InsertResume } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,76 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Resume history queries
+export async function saveResume(resume: InsertResume) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot save resume: database not available");
+    return undefined;
+  }
+
+  try {
+    const result = await db.insert(resumes).values(resume);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to save resume:", error);
+    throw error;
+  }
+}
+
+export async function getUserResumes(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get resumes: database not available");
+    return [];
+  }
+
+  try {
+    const result = await db.select().from(resumes).where(eq(resumes.userId, userId));
+    return result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  } catch (error) {
+    console.error("[Database] Failed to get resumes:", error);
+    return [];
+  }
+}
+
+export async function getResumeById(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get resume: database not available");
+    return undefined;
+  }
+
+  try {
+    const result = await db.select().from(resumes).where(eq(resumes.id, id)).limit(1);
+    if (result.length === 0 || result[0]?.userId !== userId) {
+      return undefined;
+    }
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to get resume:", error);
+    return undefined;
+  }
+}
+
+export async function deleteResume(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot delete resume: database not available");
+    return false;
+  }
+
+  try {
+    // First check if the resume belongs to the user
+    const resume = await getResumeById(id, userId);
+    if (!resume) {
+      return false;
+    }
+
+    await db.delete(resumes).where(eq(resumes.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete resume:", error);
+    return false;
+  }
+}

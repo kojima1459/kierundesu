@@ -1,71 +1,137 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { trpc } from "@/lib/trpc";
-import { Loader2, Copy, RefreshCw, FileText } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, FileText, Copy, RefreshCw, Plus, X, History, Download, Upload, Languages } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { getLoginUrl } from "@/const";
+import { extractTextFromFile } from "@/lib/fileUtils";
+import { exportToWord, exportToPDF, downloadBlob } from "@/lib/exportUtils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
-type OutputItem = "summary" | "motivation" | "self_pr" | "why_company";
+type OutputItem = {
+  key: string;
+  label: string;
+  charLimit: number;
+};
 
-const OUTPUT_ITEMS: { value: OutputItem; label: string; defaultLimit: number }[] = [
-  { value: "summary", label: "職務要約", defaultLimit: 350 },
-  { value: "motivation", label: "志望動機", defaultLimit: 400 },
-  { value: "self_pr", label: "自己PR", defaultLimit: 600 },
-  { value: "why_company", label: "なぜ御社か", defaultLimit: 400 },
+const STANDARD_ITEMS: OutputItem[] = [
+  { key: "summary", label: "職務要約", charLimit: 350 },
+  { key: "career_history", label: "職務経歴", charLimit: 800 },
+  { key: "motivation", label: "志望動機", charLimit: 400 },
+  { key: "self_pr", label: "自己PR", charLimit: 600 },
+  { key: "why_company", label: "なぜ御社か", charLimit: 400 },
+  { key: "what_to_achieve", label: "企業で実現したいこと", charLimit: 400 },
 ];
 
 export default function Home() {
+  const { user, loading: authLoading } = useAuth();
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [selectedItems, setSelectedItems] = useState<OutputItem[]>(["summary", "motivation", "self_pr", "why_company"]);
-  const [charLimits, setCharLimits] = useState<Record<OutputItem, number>>({
-    summary: 350,
-    motivation: 400,
-    self_pr: 600,
-    why_company: 400,
-  });
+  const [selectedItems, setSelectedItems] = useState<string[]>([
+    "summary",
+    "motivation",
+    "self_pr",
+    "why_company",
+  ]);
+  const [charLimits, setCharLimits] = useState<Record<string, number>>(
+    Object.fromEntries(STANDARD_ITEMS.map((item) => [item.key, item.charLimit]))
+  );
+  const [customItems, setCustomItems] = useState<OutputItem[]>([]);
+  const [newCustomLabel, setNewCustomLabel] = useState("");
+  const [newCustomCharLimit, setNewCustomCharLimit] = useState("400");
   const [generatedContent, setGeneratedContent] = useState<Record<string, string>>({});
-  const [showResults, setShowResults] = useState(false);
+  const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+  const [showHistory, setShowHistory] = useState(false);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [isUploadingJob, setIsUploadingJob] = useState(false);
+  const [translatingItem, setTranslatingItem] = useState<string | null>(null);
 
   const generateMutation = trpc.resume.generate.useMutation({
     onSuccess: (data) => {
       setGeneratedContent(data);
-      setShowResults(true);
+      setEditedContent(data);
       toast.success("生成が完了しました");
     },
     onError: (error) => {
-      toast.error(`生成に失敗しました: ${error.message}`);
+      toast.error(error.message || "生成に失敗しました");
     },
   });
 
   const regenerateMutation = trpc.resume.regenerate.useMutation({
     onSuccess: (data, variables) => {
-      setGeneratedContent((prev) => ({
-        ...prev,
-        [variables.item]: data.content,
-      }));
+      setGeneratedContent((prev) => ({ ...prev, [variables.item]: data.content }));
+      setEditedContent((prev) => ({ ...prev, [variables.item]: data.content }));
       toast.success("再生成が完了しました");
     },
     onError: (error) => {
-      toast.error(`再生成に失敗しました: ${error.message}`);
+      toast.error(error.message || "再生成に失敗しました");
     },
   });
 
+  const historyQuery = trpc.resume.history.list.useQuery(undefined, {
+    enabled: !!user && showHistory,
+  });
+
+  const getHistoryMutation = trpc.resume.history.get.useMutation();
+
+  const handleLoadHistoryInternal = async (id: number) => {
+    try {
+      const data = await getHistoryMutation.mutateAsync({ id });
+      setResumeText(data.resumeText);
+      setJobDescription(data.jobDescription);
+      setGeneratedContent(data.generatedContent);
+      setEditedContent(data.generatedContent);
+      if (data.customItems) {
+        setCustomItems(data.customItems);
+      }
+      setShowHistory(false);
+      toast.success("履歴を読み込みました");
+    } catch (error: any) {
+      toast.error(error.message || "履歴の読み込みに失敗しました");
+    }
+  };
+
+  const deleteHistoryMutation = trpc.resume.history.delete.useMutation({
+    onSuccess: () => {
+      historyQuery.refetch();
+      toast.success("履歴を削除しました");
+    },
+    onError: (error) => {
+      toast.error(error.message || "削除に失敗しました");
+    },
+  });
+
+  const translateMutation = trpc.resume.translate.useMutation({
+    onSuccess: (data, variables) => {
+      setEditedContent((prev) => ({ ...prev, [`${variables.text.substring(0, 10)}_en`]: data.translation }));
+      toast.success("翻訳が完了しました");
+      setTranslatingItem(null);
+    },
+    onError: (error) => {
+      toast.error(error.message || "翻訳に失敗しました");
+      setTranslatingItem(null);
+    },
+  });
+
+  const allItems = [...STANDARD_ITEMS, ...customItems];
+
   const handleGenerate = () => {
-    if (!resumeText.trim()) {
-      toast.error("職務経歴書を入力してください");
-      return;
-    }
-    if (!jobDescription.trim()) {
-      toast.error("求人情報を入力してください");
-      return;
-    }
-    if (selectedItems.length === 0) {
-      toast.error("出力項目を選択してください");
+    if (!user) {
+      toast.error("ログインが必要です");
+      window.location.href = getLoginUrl();
       return;
     }
 
@@ -73,210 +139,442 @@ export default function Home() {
       resumeText,
       jobDescription,
       outputItems: selectedItems,
-      charLimits: Object.fromEntries(
-        selectedItems.map((item) => [item, charLimits[item]])
-      ) as Record<OutputItem, number>,
+      charLimits,
+      customItems: customItems.map((item) => ({
+        key: item.key,
+        label: item.label,
+        charLimit: item.charLimit,
+      })),
+      saveHistory: true,
     });
   };
 
-  const handleRegenerate = (item: OutputItem) => {
+  const handleRegenerate = (itemKey: string) => {
+    const item = allItems.find((i) => i.key === itemKey);
+    if (!item) return;
+
     regenerateMutation.mutate({
-      item,
+      item: itemKey,
       resumeText,
       jobDescription,
-      charLimit: charLimits[item],
-      previousContent: generatedContent[item],
+      charLimit: charLimits[itemKey],
+      previousContent: generatedContent[itemKey],
+      itemLabel: item.label,
     });
   };
 
-  const handleCopy = (content: string, label: string) => {
+  const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
-    toast.success(`${label}をコピーしました`);
+    toast.success("コピーしました");
   };
 
-  const toggleItem = (item: OutputItem) => {
+  const handleCopyAll = () => {
+    const allContent = selectedItems
+      .map((key) => {
+        const item = allItems.find((i) => i.key === key);
+        const content = editedContent[key] || "";
+        return `【${item?.label}】\n${content}`;
+      })
+      .join("\n\n");
+
+    navigator.clipboard.writeText(allContent);
+    toast.success("全項目をコピーしました");
+  };
+
+  const handleAddCustomItem = () => {
+    if (!newCustomLabel.trim()) {
+      toast.error("項目名を入力してください");
+      return;
+    }
+
+    const key = `custom_${Date.now()}`;
+    const charLimit = parseInt(newCustomCharLimit) || 400;
+
+    setCustomItems([...customItems, { key, label: newCustomLabel, charLimit }]);
+    setCharLimits((prev) => ({ ...prev, [key]: charLimit }));
+    setSelectedItems((prev) => [...prev, key]);
+    setNewCustomLabel("");
+    setNewCustomCharLimit("400");
+    toast.success("カスタム項目を追加しました");
+  };
+
+  const handleRemoveCustomItem = (key: string) => {
+    setCustomItems(customItems.filter((item) => item.key !== key));
+    setSelectedItems(selectedItems.filter((k) => k !== key));
+    const newCharLimits = { ...charLimits };
+    delete newCharLimits[key];
+    setCharLimits(newCharLimits);
+    toast.success("カスタム項目を削除しました");
+  };
+
+  const handleToggleItem = (key: string) => {
     setSelectedItems((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
   };
 
-  const handleBack = () => {
-    setShowResults(false);
+  const handleLoadHistory = (id: number) => {
+    handleLoadHistoryInternal(id);
   };
 
-  if (showResults) {
+  const handleDeleteHistory = (id: number) => {
+    if (confirm("この履歴を削除してもよろしいですか？")) {
+      deleteHistoryMutation.mutate({ id });
+    }
+  };
+
+  const handleResumeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingResume(true);
+    try {
+      const text = await extractTextFromFile(file);
+      setResumeText(text);
+      toast.success("ファイルを読み込みました");
+    } catch (error: any) {
+      toast.error(error.message || "ファイルの読み込みに失敗しました");
+    } finally {
+      setIsUploadingResume(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleJobFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingJob(true);
+    try {
+      const text = await extractTextFromFile(file);
+      setJobDescription(text);
+      toast.success("ファイルを読み込みました");
+    } catch (error: any) {
+      toast.error(error.message || "ファイルの読み込みに失敗しました");
+    } finally {
+      setIsUploadingJob(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleTranslate = (itemKey: string) => {
+    const item = allItems.find((i) => i.key === itemKey);
+    if (!item) return;
+
+    const text = editedContent[itemKey] || generatedContent[itemKey];
+    if (!text) {
+      toast.error("翻訳するテキストがありません");
+      return;
+    }
+
+    setTranslatingItem(itemKey);
+    translateMutation.mutate({
+      text,
+      itemLabel: item.label,
+    });
+  };
+
+  const handleDownloadWord = async () => {
+    try {
+      const itemsToExport = selectedItems
+        .map((key) => {
+          const item = allItems.find((i) => i.key === key);
+          return item ? { key, label: item.label } : null;
+        })
+        .filter((item): item is { key: string; label: string } => item !== null);
+
+      const blob = await exportToWord(editedContent, itemsToExport);
+      downloadBlob(blob, "職務経歴書.docx");
+      toast.success("Wordファイルをダウンロードしました");
+    } catch (error: any) {
+      toast.error(error.message || "ダウンロードに失敗しました");
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      const itemsToExport = selectedItems
+        .map((key) => {
+          const item = allItems.find((i) => i.key === key);
+          return item ? { key, label: item.label } : null;
+        })
+        .filter((item): item is { key: string; label: string } => item !== null);
+
+      const doc = exportToPDF(editedContent, itemsToExport);
+      doc.save("職務経歴書.pdf");
+      toast.success("PDFファイルをダウンロードしました");
+    } catch (error: any) {
+      toast.error(error.message || "ダウンロードに失敗しました");
+    }
+  };
+
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
-        <div className="container max-w-5xl">
-          <div className="mb-8">
-            <Button variant="outline" onClick={handleBack} className="mb-4">
-              ← 入力画面に戻る
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">職務経歴書最適化ツール</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="mb-4 text-muted-foreground">
+              ログインして職務経歴書の最適化を始めましょう
+            </p>
+            <Button asChild>
+              <a href={getLoginUrl()}>ログイン</a>
             </Button>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">生成結果</h1>
-            <p className="text-gray-600">各項目をコピーまたは再生成できます</p>
-          </div>
-
-          <div className="space-y-6">
-            {selectedItems.map((item) => {
-              const itemConfig = OUTPUT_ITEMS.find((i) => i.value === item);
-              if (!itemConfig) return null;
-
-              const content = generatedContent[item] || "";
-              const charCount = content.length;
-              const limit = charLimits[item];
-              const isOverLimit = charCount > limit;
-
-              return (
-                <Card key={item} className="shadow-lg">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-2xl">{itemConfig.label}</CardTitle>
-                        <CardDescription className={isOverLimit ? "text-red-500" : ""}>
-                          {charCount}文字 / {limit}文字
-                        </CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCopy(content, itemConfig.label)}
-                          disabled={!content}
-                        >
-                          <Copy className="w-4 h-4 mr-2" />
-                          コピー
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRegenerate(item)}
-                          disabled={regenerateMutation.isPending}
-                        >
-                          {regenerateMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          ) : (
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                          )}
-                          再生成
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="whitespace-pre-wrap text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-md">
-                      {content || "生成中..."}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
-      <div className="container max-w-4xl">
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-4">
-            <FileText className="w-12 h-12 text-blue-600" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+      <div className="container max-w-6xl">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <FileText className="h-10 w-10 text-primary" />
+            <h1 className="text-3xl font-bold text-gray-900">職務経歴書最適化ツール</h1>
           </div>
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">職務経歴書最適化ツール</h1>
-          <p className="text-xl text-gray-600">
-            求人情報に合わせて、あなたの職務経歴書を最適化します
-          </p>
+          <Dialog open={showHistory} onOpenChange={setShowHistory}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <History className="h-4 w-4 mr-2" />
+                履歴
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>生成履歴</DialogTitle>
+                <DialogDescription>過去に生成した職務経歴書の履歴</DialogDescription>
+              </DialogHeader>
+              {historyQuery.isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : historyQuery.data && historyQuery.data.length > 0 ? (
+                <div className="space-y-2">
+                  {historyQuery.data.map((item) => (
+                    <Card key={item.id} className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm text-muted-foreground mb-1">
+                            {new Date(item.createdAt).toLocaleString("ja-JP")}
+                          </p>
+                          <p className="text-sm mb-1">
+                            <strong>職務経歴書:</strong> {item.resumeTextPreview}
+                          </p>
+                          <p className="text-sm">
+                            <strong>求人情報:</strong> {item.jobDescriptionPreview}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleLoadHistory(item.id)}
+                          >
+                            読込
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteHistory(item.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">履歴がありません</p>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
 
-        <Card className="shadow-xl">
+        <p className="text-center text-gray-600 mb-8">
+          求人情報に合わせて、あなたの職務経歴書を最適化します
+        </p>
+
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-2xl">入力情報</CardTitle>
-            <CardDescription>職務経歴書と求人情報を入力してください</CardDescription>
+            <CardTitle>入力情報</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="resume" className="text-lg font-semibold">
-                1. 職務経歴書
-              </Label>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="resume" className="text-base font-semibold">
+                  1. 職務経歴書
+                </Label>
+                <div>
+                  <input
+                    type="file"
+                    id="resume-file"
+                    accept=".pdf,.docx,.txt"
+                    onChange={handleResumeFileUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("resume-file")?.click()}
+                    disabled={isUploadingResume}
+                  >
+                    {isUploadingResume ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    ファイルアップロード
+                  </Button>
+                </div>
+              </div>
               <Textarea
                 id="resume"
-                placeholder="あなたの職務経歴書をここに貼り付けてください..."
+                placeholder="あなたの職務経歴書をここに貼り付けてください。またはPDF/Wordファイルをアップロードできます..."
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
-                className="min-h-[200px] text-base"
+                className="min-h-[200px]"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="job" className="text-lg font-semibold">
-                2. 求人情報
-              </Label>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="job" className="text-base font-semibold">
+                  2. 求人情報
+                </Label>
+                <div>
+                  <input
+                    type="file"
+                    id="job-file"
+                    accept=".pdf,.docx,.txt"
+                    onChange={handleJobFileUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("job-file")?.click()}
+                    disabled={isUploadingJob}
+                  >
+                    {isUploadingJob ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    ファイルアップロード
+                  </Button>
+                </div>
+              </div>
               <Textarea
                 id="job"
-                placeholder="応募する求人情報をここに貼り付けてください..."
+                placeholder="応募する求人情報をここに貼り付けてください。またはPDF/Wordファイルをアップロードできます..."
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
-                className="min-h-[200px] text-base"
+                className="min-h-[200px]"
               />
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-lg font-semibold">3. 出力項目を選択</Label>
+            <div>
+              <Label className="text-base font-semibold mb-3 block">3. 出力項目を選択</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {OUTPUT_ITEMS.map((item) => (
-                  <div key={item.value} className="flex items-center space-x-2 p-3 border rounded-lg">
+                {allItems.map((item) => (
+                  <div key={item.key} className="flex items-center space-x-2 p-3 border rounded-lg">
                     <Checkbox
-                      id={item.value}
-                      checked={selectedItems.includes(item.value)}
-                      onCheckedChange={() => toggleItem(item.value)}
+                      id={item.key}
+                      checked={selectedItems.includes(item.key)}
+                      onCheckedChange={() => handleToggleItem(item.key)}
                     />
-                    <Label htmlFor={item.value} className="flex-1 cursor-pointer">
+                    <Label htmlFor={item.key} className="flex-1 cursor-pointer">
                       {item.label}
                     </Label>
+                    {customItems.some((ci) => ci.key === item.key) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRemoveCustomItem(item.key)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
+
+              <div className="mt-4 p-4 border rounded-lg bg-muted/50">
+                <Label className="text-sm font-semibold mb-2 block">カスタム項目を追加</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="項目名（例：なぜ今転職するのか）"
+                    value={newCustomLabel}
+                    onChange={(e) => setNewCustomLabel(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="文字数"
+                    value={newCustomCharLimit}
+                    onChange={(e) => setNewCustomCharLimit(e.target.value)}
+                    className="w-24"
+                  />
+                  <Button onClick={handleAddCustomItem} size="icon">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-lg font-semibold">4. 文字数設定</Label>
+            <div>
+              <Label className="text-base font-semibold mb-3 block">4. 文字数設定</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {OUTPUT_ITEMS.map((item) => (
-                  <div key={item.value} className="space-y-2">
-                    <Label htmlFor={`limit-${item.value}`} className="text-sm">
-                      {item.label}
-                    </Label>
-                    <div className="flex items-center gap-2">
+                {allItems
+                  .filter((item) => selectedItems.includes(item.key))
+                  .map((item) => (
+                    <div key={item.key} className="flex items-center gap-3">
+                      <Label className="flex-1">{item.label}</Label>
                       <Input
-                        id={`limit-${item.value}`}
                         type="number"
-                        value={charLimits[item.value]}
+                        value={charLimits[item.key] || item.charLimit}
                         onChange={(e) =>
                           setCharLimits((prev) => ({
                             ...prev,
-                            [item.value]: parseInt(e.target.value) || 0,
+                            [item.key]: parseInt(e.target.value) || 0,
                           }))
                         }
-                        className="w-24"
-                        min="0"
+                        className="w-20"
                       />
-                      <span className="text-sm text-gray-600">文字</span>
+                      <span className="text-sm text-muted-foreground">文字</span>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
 
             <Button
               onClick={handleGenerate}
-              disabled={generateMutation.isPending}
-              className="w-full h-14 text-lg font-semibold"
-              size="lg"
+              disabled={
+                !resumeText.trim() ||
+                !jobDescription.trim() ||
+                selectedItems.length === 0 ||
+                generateMutation.isPending
+              }
+              className="w-full h-12 text-lg"
             >
               {generateMutation.isPending ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   生成中...
                 </>
               ) : (
@@ -285,6 +583,91 @@ export default function Home() {
             </Button>
           </CardContent>
         </Card>
+
+        {Object.keys(generatedContent).length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>生成結果</CardTitle>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopyAll} variant="outline">
+                    <Copy className="h-4 w-4 mr-2" />
+                    全項目をコピー
+                  </Button>
+                  <Button onClick={handleDownloadWord} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Word
+                  </Button>
+                  <Button onClick={handleDownloadPDF} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    PDF
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedItems.map((key) => {
+                const item = allItems.find((i) => i.key === key);
+                if (!item || !generatedContent[key]) return null;
+
+                return (
+                  <div key={key} className="p-4 border rounded-lg bg-white">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-lg">{item.label}</h3>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCopy(editedContent[key] || generatedContent[key])}
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          コピー
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleTranslate(key)}
+                          disabled={translatingItem === key}
+                        >
+                          <Languages
+                            className={`h-4 w-4 mr-1 ${
+                              translatingItem === key ? "animate-spin" : ""
+                            }`}
+                          />
+                          英語
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRegenerate(key)}
+                          disabled={regenerateMutation.isPending}
+                        >
+                          <RefreshCw
+                            className={`h-4 w-4 mr-1 ${
+                              regenerateMutation.isPending ? "animate-spin" : ""
+                            }`}
+                          />
+                          再生成
+                        </Button>
+                      </div>
+                    </div>
+                    <Textarea
+                      value={editedContent[key] || generatedContent[key]}
+                      onChange={(e) =>
+                        setEditedContent((prev) => ({ ...prev, [key]: e.target.value }))
+                      }
+                      className="min-h-[150px] font-normal"
+                    />
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {(editedContent[key] || generatedContent[key]).length} / {charLimits[key]}{" "}
+                      文字
+                    </p>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
