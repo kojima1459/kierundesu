@@ -320,15 +320,19 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center">職務経歴書最適化ツール</CardTitle>
+          <CardHeader className="text-center">
+            <FileText className="h-12 w-12 mx-auto mb-4 text-primary" />
+            <CardTitle className="text-2xl">職務経歴書最適化ツール</CardTitle>
+            <p className="text-muted-foreground mt-2">
+              求人情報に合わせて、あなたの職務経歴書を最適化します
+            </p>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="mb-4 text-muted-foreground">
-              ログインして職務経歴書の最適化を始めましょう
+            <p className="text-sm text-muted-foreground mb-4">
+              ご利用にはManusアカウントでのログインが必要です
             </p>
-            <Button asChild>
-              <a href={getLoginUrl()}>ログイン</a>
+            <Button asChild className="w-full">
+              <a href={getLoginUrl()}>ログインして開始</a>
             </Button>
           </CardContent>
         </Card>
