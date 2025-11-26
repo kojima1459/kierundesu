@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, resumes, InsertResume, apiKeys, InsertApiKey, templates, Template } from "../drizzle/schema";
+import { InsertUser, users, resumes, InsertResume, apiKeys, InsertApiKey, templates, Template, userTemplates, UserTemplate, InsertUserTemplate } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -283,5 +283,104 @@ export async function getTemplateById(id: number): Promise<Template | undefined>
   } catch (error) {
     console.error("[Database] Failed to get template:", error);
     return undefined;
+  }
+}
+
+// ========================================
+// ユーザーテンプレート関連のヘルパー関数
+// ========================================
+
+export async function createUserTemplate(template: InsertUserTemplate): Promise<number | undefined> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot create user template: database not available");
+    return undefined;
+  }
+
+  try {
+    const result = await db.insert(userTemplates).values(template);
+    return result[0]?.insertId;
+  } catch (error) {
+    console.error("[Database] Failed to create user template:", error);
+    throw error;
+  }
+}
+
+export async function getUserTemplates(userId: number): Promise<UserTemplate[]> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user templates: database not available");
+    return [];
+  }
+
+  try {
+    const result = await db.select().from(userTemplates).where(eq(userTemplates.userId, userId));
+    return result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  } catch (error) {
+    console.error("[Database] Failed to get user templates:", error);
+    return [];
+  }
+}
+
+export async function getUserTemplateById(id: number, userId: number): Promise<UserTemplate | undefined> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user template: database not available");
+    return undefined;
+  }
+
+  try {
+    const result = await db.select().from(userTemplates).where(eq(userTemplates.id, id)).limit(1);
+    if (result.length === 0 || result[0]?.userId !== userId) {
+      return undefined;
+    }
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to get user template:", error);
+    return undefined;
+  }
+}
+
+export async function updateUserTemplate(id: number, userId: number, updates: Partial<InsertUserTemplate>): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot update user template: database not available");
+    return false;
+  }
+
+  try {
+    // First check if the template belongs to the user
+    const template = await getUserTemplateById(id, userId);
+    if (!template) {
+      return false;
+    }
+
+    await db.update(userTemplates).set(updates).where(eq(userTemplates.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update user template:", error);
+    return false;
+  }
+}
+
+export async function deleteUserTemplate(id: number, userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot delete user template: database not available");
+    return false;
+  }
+
+  try {
+    // First check if the template belongs to the user
+    const template = await getUserTemplateById(id, userId);
+    if (!template) {
+      return false;
+    }
+
+    await db.delete(userTemplates).where(eq(userTemplates.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete user template:", error);
+    return false;
   }
 }

@@ -603,6 +603,173 @@ JSON形式で出力してください:
       return { success };
     }),
   }),
+
+  // ユーザーテンプレート用のrouter
+  userTemplate: router({
+    // ユーザーのテンプレート一覧を取得
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const templates = await db.getUserTemplates(ctx.user.id);
+      return templates;
+    }),
+
+    // テンプレートの詳細を取得
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const template = await db.getUserTemplateById(input.id, ctx.user.id);
+        if (!template) {
+          throw new Error("テンプレートが見つかりません");
+        }
+        return template;
+      }),
+
+    // テンプレートを作成
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1, "テンプレート名を入力してください"),
+          description: z.string().min(1, "説明を入力してください"),
+          promptTemplate: z.string().min(1, "プロンプトテンプレートを入力してください"),
+          isPublic: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const templateId = await db.createUserTemplate({
+          userId: ctx.user.id,
+          name: input.name,
+          description: input.description,
+          promptTemplate: input.promptTemplate,
+          isPublic: input.isPublic ? 1 : 0,
+        });
+        return { id: templateId };
+      }),
+
+    // テンプレートを更新
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().min(1).optional(),
+          description: z.string().min(1).optional(),
+          promptTemplate: z.string().min(1).optional(),
+          isPublic: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...updates } = input;
+        const updateData: any = {};
+        if (updates.name) updateData.name = updates.name;
+        if (updates.description) updateData.description = updates.description;
+        if (updates.promptTemplate) updateData.promptTemplate = updates.promptTemplate;
+        if (updates.isPublic !== undefined) updateData.isPublic = updates.isPublic ? 1 : 0;
+
+        const success = await db.updateUserTemplate(id, ctx.user.id, updateData);
+        if (!success) {
+          throw new Error("テンプレートの更新に失敗しました");
+        }
+        return { success };
+      }),
+
+    // テンプレートを削除
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const success = await db.deleteUserTemplate(input.id, ctx.user.id);
+        if (!success) {
+          throw new Error("テンプレートの削除に失敗しました");
+        }
+        return { success };
+      }),
+
+    // ユーザーテンプレートを使用して生成
+    generateWithUserTemplate: protectedProcedure
+      .input(
+        z.object({
+          templateId: z.number(),
+          resumeText: z.string().min(1, "職務経歴書を入力してください"),
+          jobDescription: z.string().min(1, "求人情報を入力してください"),
+          outputItems: z.array(z.string()),
+          charLimits: z.record(z.string(), z.number()),
+          customItems: z
+            .array(
+              z.object({
+                key: z.string(),
+                label: z.string(),
+                charLimit: z.number().optional(),
+              })
+            )
+            .optional(),
+          saveHistory: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { templateId, resumeText, jobDescription, outputItems, charLimits, customItems, saveHistory } = input;
+
+        // ユーザーテンプレートを取得
+        const template = await db.getUserTemplateById(templateId, ctx.user.id);
+        if (!template) {
+          throw new Error("テンプレートが見つかりません");
+        }
+
+        const itemLabels: Record<string, string> = {
+          summary: "職務要約",
+          career_history: "職務経歴",
+          motivation: "志望動機",
+          self_pr: "自己PR",
+          why_company: "なぜ御社か",
+          what_to_achieve: "企業で実現したいこと",
+        };
+
+        if (customItems) {
+          customItems.forEach((item) => {
+            itemLabels[item.key] = item.label;
+          });
+        }
+
+        const outputInstructions = outputItems
+          .map((item) => {
+            const label = itemLabels[item] || item;
+            const limit = charLimits[item];
+            return `- ${label}: ${limit ? `${limit}文字以内` : "適切な長さ"}`;
+          })
+          .join("\n");
+
+        // テンプレートのプロンプトに変数を埋め込む
+        const prompt = template.promptTemplate
+          .replace(/\{\{resumeText\}\}/g, resumeText)
+          .replace(/\{\{jobDescription\}\}/g, jobDescription) +
+          `\n\n【出力項目と文字数】\n${outputInstructions}\n\n【出力形式】\nJSON形式で出力してください。キーは以下の通りです:\n${outputItems.map((item) => `"${item}"`).join(", ")}\n\n例:\n{\n  "summary": "...",\n  "motivation": "...",\n  "self_pr": "...",\n  "why_company": "..."\n}`;
+
+        const content = await invokeLLMWithUserSettings(ctx.user.id, [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ]);
+
+        if (!content || typeof content !== "string") {
+          throw new Error("生成に失敗しました");
+        }
+
+        // JSONパース（マークダウンのコードブロックを削除）
+        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
+        const jsonString = jsonMatch ? jsonMatch[1] : content;
+        const result = JSON.parse(jsonString.trim());
+
+        // Save to history if requested
+        if (saveHistory && ctx.user) {
+          await db.saveResume({
+            userId: ctx.user.id,
+            resumeText,
+            jobDescription,
+            generatedContent: JSON.stringify(result),
+            customItems: customItems ? JSON.stringify(customItems) : null,
+          });
+        }
+
+        return result;
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

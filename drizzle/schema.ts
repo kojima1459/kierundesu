@@ -78,3 +78,21 @@ export const templates = mysqlTable("templates", {
 
 export type Template = typeof templates.$inferSelect;
 export type InsertTemplate = typeof templates.$inferInsert;
+
+/**
+ * ユーザー独自テンプレートテーブル
+ * ユーザーが作成・保存した独自のテンプレート
+ */
+export const userTemplates = mysqlTable("userTemplates", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(), // テンプレートを作成したユーザー
+  name: varchar("name", { length: 255 }).notNull(), // テンプレート名
+  description: text("description").notNull(), // テンプレートの説明
+  promptTemplate: text("promptTemplate").notNull(), // LLMに渡すプロンプトテンプレート
+  isPublic: int("isPublic").notNull().default(0), // 公開設定（0: 非公開, 1: 公開）
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserTemplate = typeof userTemplates.$inferSelect;
+export type InsertUserTemplate = typeof userTemplates.$inferInsert;

@@ -67,6 +67,7 @@ export default function Home() {
   const [selectedPatternIndex, setSelectedPatternIndex] = useState<number | null>(null);
   const [showPatternDialog, setShowPatternDialog] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [selectedUserTemplateId, setSelectedUserTemplateId] = useState<number | null>(null);
 
   const generateMultipleMutation = trpc.resume.generateMultiple.useMutation({
     onSuccess: (data) => {
@@ -95,6 +96,17 @@ export default function Home() {
       setGeneratedContent(data);
       setEditedContent(data);
       toast.success("テンプレートを使用して生成が完了しました");
+    },
+    onError: (error) => {
+      toast.error(error.message || "生成に失敗しました");
+    },
+  });
+
+  const generateWithUserTemplateMutation = trpc.userTemplate.generateWithUserTemplate.useMutation({
+    onSuccess: (data) => {
+      setGeneratedContent(data);
+      setEditedContent(data);
+      toast.success("マイテンプレートを使用して生成が完了しました");
     },
     onError: (error) => {
       toast.error(error.message || "生成に失敗しました");
@@ -167,9 +179,24 @@ export default function Home() {
     }
 
     if (selectedTemplateId) {
-      // テンプレートを使用して生成
+      // システムテンプレートを使用して生成
       generateWithTemplateMutation.mutate({
         templateId: selectedTemplateId,
+        resumeText,
+        jobDescription,
+        outputItems: selectedItems,
+        charLimits,
+        customItems: customItems.map((item) => ({
+          key: item.key,
+          label: item.label,
+          charLimit: item.charLimit,
+        })),
+        saveHistory: true,
+      });
+    } else if (selectedUserTemplateId) {
+      // ユーザーテンプレートを使用して生成
+      generateWithUserTemplateMutation.mutate({
+        templateId: selectedUserTemplateId,
         resumeText,
         jobDescription,
         outputItems: selectedItems,
@@ -234,6 +261,13 @@ export default function Home() {
     setSelectedTemplateId(templateId);
     if (templateId) {
       toast.success("テンプレートを選択しました");
+    }
+  };
+
+  const handleSelectUserTemplate = (templateId: number | null) => {
+    setSelectedUserTemplateId(templateId);
+    if (templateId) {
+      toast.success("マイテンプレートを選択しました");
     }
   };
 
@@ -630,7 +664,7 @@ export default function Home() {
 
             <div>
               <Label className="text-base font-semibold mb-3 block">3. テンプレートを選択（オプション）</Label>
-              <TemplateSelector onSelectTemplate={handleSelectTemplate} />
+              <TemplateSelector onSelectTemplate={handleSelectTemplate} onSelectUserTemplate={handleSelectUserTemplate} />
             </div>
 
             <div>
