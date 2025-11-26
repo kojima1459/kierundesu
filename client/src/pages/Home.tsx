@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, FileText, Copy, RefreshCw, Plus, X, History, Download, Upload, Languages, Settings as SettingsIcon } from "lucide-react";
+import { Loader2, FileText, Copy, RefreshCw, Plus, X, History, Download, Upload, Languages, Settings as SettingsIcon, Moon, Sun } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { extractTextFromFile } from "@/lib/fileUtils";
 import { extractTextFromImage, isImageFile } from "@/lib/ocrUtils";
+import { useTheme } from "@/contexts/ThemeContext";
 import { exportToWord, exportToPDF, downloadBlob } from "@/lib/exportUtils";
 import {
   Dialog,
@@ -40,6 +41,7 @@ const STANDARD_ITEMS: OutputItem[] = [
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([
@@ -68,12 +70,38 @@ export default function Home() {
   const [showPatternDialog, setShowPatternDialog] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [selectedUserTemplateId, setSelectedUserTemplateId] = useState<number | null>(null);
+  const [patternEvaluations, setPatternEvaluations] = useState<Record<number, { score: number; details: any }>>({});
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [sortByScore, setSortByScore] = useState(false);
+
+  const evaluateMutation = trpc.resume.evaluate.useMutation();
 
   const generateMultipleMutation = trpc.resume.generateMultiple.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setGeneratedPatterns(data.patterns);
       setShowPatternDialog(true);
       toast.success(`${data.patternCount}個のパターンを生成しました`);
+      
+      // 自動評価を実行
+      setIsEvaluating(true);
+      const evaluations: Record<number, { score: number; details: any }> = {};
+      
+      for (let i = 0; i < data.patterns.length; i++) {
+        try {
+          const pattern = data.patterns[i];
+          const resumeContent = Object.values(pattern).join('\n\n');
+          const evaluation = await evaluateMutation.mutateAsync({
+            resumeContent,
+            jobDescription,
+          });
+          evaluations[i] = evaluation;
+        } catch (error) {
+          console.error(`Pattern ${i} evaluation failed:`, error);
+        }
+      }
+      
+      setPatternEvaluations(evaluations);
+      setIsEvaluating(false);
     },
     onError: (error) => {
       toast.error(error.message || "生成に失敗しました");
@@ -484,25 +512,33 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 md:py-8 px-4">
       <div className="container max-w-6xl">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <FileText className="h-10 w-10 text-primary" />
-            <h1 className="text-3xl font-bold text-gray-900">職務経歴書最適化ツール</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
+          <div className="flex items-center gap-2 md:gap-3">
+            <FileText className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+            <h1 className="text-xl md:text-3xl font-bold text-gray-900">職務経歴書最適化ツール</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleTheme}
+              className="flex-none"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <Button variant="outline" asChild className="flex-1 sm:flex-none">
               <a href="/settings">
                 <SettingsIcon className="h-4 w-4 mr-2" />
-                設定
+                <span className="hidden sm:inline">設定</span>
               </a>
             </Button>
             <Dialog open={showHistory} onOpenChange={setShowHistory}>
               <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="flex-1 sm:flex-none">
                   <History className="h-4 w-4 mr-2" />
-                  履歴
+                  <span className="hidden sm:inline">履歴</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -897,8 +933,35 @@ export default function Home() {
               {generatedPatterns.length}個の異なる表現パターンを生成しました。最適なものを選択してください。
             </DialogDescription>
           </DialogHeader>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="sort-by-score"
+                checked={sortByScore}
+                onCheckedChange={(checked) => setSortByScore(checked as boolean)}
+              />
+              <Label htmlFor="sort-by-score" className="cursor-pointer">
+                スコア順にソート
+              </Label>
+            </div>
+            {isEvaluating && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                AI評価中...
+              </div>
+            )}
+          </div>
           <div className="space-y-4 mt-4">
-            {generatedPatterns.map((pattern, index) => (
+            {(sortByScore
+              ? generatedPatterns
+                  .map((pattern, index) => ({ pattern, index }))
+                  .sort((a, b) => {
+                    const scoreA = patternEvaluations[a.index]?.score || 0;
+                    const scoreB = patternEvaluations[b.index]?.score || 0;
+                    return scoreB - scoreA;
+                  })
+              : generatedPatterns.map((pattern, index) => ({ pattern, index }))
+            ).map(({ pattern, index }) => (
               <Card
                 key={index}
                 className={`cursor-pointer transition-all ${
@@ -909,14 +972,52 @@ export default function Home() {
                 onClick={() => handleSelectPattern(index)}
               >
                 <CardHeader>
-                  <CardTitle className="text-lg">
-                    パターン {index + 1}
-                    {selectedPatternIndex === index && (
-                      <span className="ml-2 text-sm text-blue-600 font-normal">
-                        (選択中)
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">
+                      パターン {index + 1}
+                      {selectedPatternIndex === index && (
+                        <span className="ml-2 text-sm text-blue-600 font-normal">
+                          (選択中)
+                        </span>
+                      )}
+                    </CardTitle>
+                    {patternEvaluations[index] && (
+                      <div className="flex flex-col items-end">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {patternEvaluations[index].score}点
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          AI評価スコア
+                        </div>
+                      </div>
                     )}
-                  </CardTitle>
+                  </div>
+                  {patternEvaluations[index]?.details && (
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">関連性:</span>
+                        <span className="font-semibold">{patternEvaluations[index].details.relevance}点</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">明確性:</span>
+                        <span className="font-semibold">{patternEvaluations[index].details.clarity}点</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">インパクト:</span>
+                        <span className="font-semibold">{patternEvaluations[index].details.impact}点</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">完全性:</span>
+                        <span className="font-semibold">{patternEvaluations[index].details.completeness}点</span>
+                      </div>
+                    </div>
+                  )}
+                  {patternEvaluations[index]?.details?.feedback && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">改善提案:</p>
+                      <p className="text-sm text-gray-700">{patternEvaluations[index].details.feedback}</p>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {selectedItems.map((key) => {

@@ -9,6 +9,7 @@ import * as db from "./db";
 import { encryptApiKey, decryptApiKey } from "./encryption";
 import { invokeGemini, type GeminiMessage } from "./gemini";
 import { invokeLLMWithUserSettings } from "./llmHelper";
+import { evaluateResume } from "./evaluation";
 
 const STANDARD_ITEMS = [
   "summary",
@@ -354,6 +355,31 @@ JSON形式で出力してください:
           return { success };
         }),
     }),
+
+    // 評価機能
+    evaluate: protectedProcedure
+      .input(
+        z.object({
+          resumeContent: z.string().min(1),
+          jobDescription: z.string().min(1),
+          resumeId: z.number().optional(), // 履歴ID（保存する場合）
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const evaluation = await evaluateResume(input.resumeContent, input.jobDescription);
+
+        // 履歴IDが指定されていれば、評価結果を保存
+        if (input.resumeId) {
+          await db.updateResumeEvaluation(
+            input.resumeId,
+            ctx.user.id,
+            evaluation.score,
+            JSON.stringify(evaluation.details)
+          );
+        }
+
+        return evaluation;
+      }),
 
     translate: protectedProcedure
       .input(

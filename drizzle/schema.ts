@@ -36,6 +36,8 @@ export const resumes = mysqlTable("resumes", {
   jobDescription: text("jobDescription").notNull(),
   generatedContent: text("generatedContent").notNull(), // JSON string
   customItems: text("customItems"), // JSON string for custom field definitions
+  evaluationScore: int("evaluationScore"), // AI評価スコア（0-100）
+  evaluationDetails: text("evaluationDetails"), // 評価詳細（JSON string）
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

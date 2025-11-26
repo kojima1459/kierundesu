@@ -384,3 +384,33 @@ export async function deleteUserTemplate(id: number, userId: number): Promise<bo
     return false;
   }
 }
+
+export async function updateResumeEvaluation(
+  id: number,
+  userId: number,
+  evaluationScore: number,
+  evaluationDetails: string
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot update resume evaluation: database not available");
+    return false;
+  }
+
+  try {
+    // First check if the resume belongs to the user
+    const resume = await getResumeById(id, userId);
+    if (!resume) {
+      return false;
+    }
+
+    await db
+      .update(resumes)
+      .set({ evaluationScore, evaluationDetails })
+      .where(eq(resumes.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update resume evaluation:", error);
+    return false;
+  }
+}
