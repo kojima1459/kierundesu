@@ -14,7 +14,8 @@ import { extractTextFromFile } from "@/lib/fileUtils";
 import { extractTextFromImage, isImageFile } from "@/lib/ocrUtils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { exportToWord, exportToPDF, exportToText, exportToMarkdown, downloadBlob } from "@/lib/exportUtils";
-import { shareToLinkedIn, ShareStats } from "@/lib/linkedinShare";
+import { shareToLinkedIn, ShareStats, generateLinkedInShareText } from "@/lib/linkedinShare";
+import { LinkedInShareDialog } from "@/components/LinkedInShareDialog";
 import {
   Dialog,
   DialogContent,
@@ -75,6 +76,8 @@ export default function Home() {
   const [patternEvaluations, setPatternEvaluations] = useState<Record<number, { score: number; details: any }>>({});
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [sortByScore, setSortByScore] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareDialogText, setShareDialogText] = useState("");
 
   const evaluateMutation = trpc.resume.evaluate.useMutation();
 
@@ -590,11 +593,25 @@ export default function Home() {
         items: itemsToExport,
       };
 
-      shareToLinkedIn(stats);
-      toast.success("シェア用テキストをクリップボードにコピーしました\nLinkedInで貼り付けて投稿してください");
+      const text = generateLinkedInShareText(stats);
+      setShareDialogText(text);
+      setShowShareDialog(true);
     } catch (error: any) {
       toast.error(error.message || "シェアに失敗しました");
     }
+  };
+
+  const handleConfirmShare = (text: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success("シェア用テキストをクリップボードにコピーしました");
+      }).catch((err) => {
+        console.error('Failed to copy text:', err);
+      });
+    }
+    
+    // LinkedInを開く
+    window.open('https://www.linkedin.com/feed/', '_blank', 'noopener,noreferrer');
   };
 
   if (authLoading) {
@@ -1246,6 +1263,12 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+      <LinkedInShareDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        defaultText={shareDialogText}
+        onShare={handleConfirmShare}
+      />
       <Footer />
     </div>
   );

@@ -96,7 +96,7 @@ export default function Footer() {
                   <span className="font-semibold">kojima1459</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  ※寄付頂けるとより励みになります※ ※より良いアプリ開発の為にご寄付を※
+                  ★寄付頂けると励みになる為よりよい良いアプリ開発の為にご寄付を★
                 </p>
               </li>
             </ul>
