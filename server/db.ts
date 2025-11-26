@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, resumes, InsertResume, apiKeys, InsertApiKey, templates, Template, userTemplates, UserTemplate, InsertUserTemplate, favoritePatterns, FavoritePattern, InsertFavoritePattern } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -160,6 +160,49 @@ export async function deleteResume(id: number, userId: number) {
   } catch (error) {
     console.error("[Database] Failed to delete resume:", error);
     return false;
+  }
+}
+
+export async function toggleFavorite(id: number, userId: number, isFavorite: boolean) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot toggle favorite: database not available");
+    return false;
+  }
+
+  try {
+    // First check if the resume belongs to the user
+    const resume = await getResumeById(id, userId);
+    if (!resume) {
+      return false;
+    }
+
+    await db.update(resumes)
+      .set({ isFavorite: isFavorite ? 1 : 0 })
+      .where(eq(resumes.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to toggle favorite:", error);
+    return false;
+  }
+}
+
+export async function getFavoriteResumes(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get favorite resumes: database not available");
+    return [];
+  }
+
+  try {
+    return await db
+      .select()
+      .from(resumes)
+      .where(and(eq(resumes.userId, userId), eq(resumes.isFavorite, 1)))
+      .orderBy(desc(resumes.createdAt));
+  } catch (error) {
+    console.error("[Database] Failed to get favorite resumes:", error);
+    return [];
   }
 }
 

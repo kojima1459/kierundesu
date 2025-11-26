@@ -87,6 +87,7 @@ export default function Home() {
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<any | null>(null);
   const [historySearchKeyword, setHistorySearchKeyword] = useState("");
   const [historyDateFilter, setHistoryDateFilter] = useState<"all" | "today" | "week" | "month">("all");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { scheduleSave, loadData, clearData, lastSaved, isSaving } = useAutoSave();
 
   const evaluateMutation = trpc.resume.evaluate.useMutation();
@@ -441,6 +442,20 @@ export default function Home() {
     if (confirm("この履歴を削除してもよろしいですか？")) {
       deleteHistoryMutation.mutate({ id });
     }
+  };
+
+  const toggleFavoriteMutation = trpc.resume.history.toggleFavorite.useMutation({
+    onSuccess: (data) => {
+      historyQuery.refetch();
+      toast.success(data.isFavorite ? "お気に入りに登録しました" : "お気に入りを解除しました");
+    },
+    onError: (error) => {
+      toast.error(error.message || "お気に入りの更新に失敗しました");
+    },
+  });
+
+  const handleToggleFavorite = (id: number, isFavorite: boolean) => {
+    toggleFavoriteMutation.mutate({ id, isFavorite });
   };
 
   const handleResumeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -827,7 +842,7 @@ export default function Home() {
                   value={historySearchKeyword}
                   onChange={(e) => setHistorySearchKeyword(e.target.value)}
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     variant={historyDateFilter === "all" ? "default" : "outline"}
                     size="sm"
@@ -856,6 +871,15 @@ export default function Home() {
                   >
                     1ヶ月
                   </Button>
+                  <div className="w-px h-6 bg-border" />
+                  <Button
+                    variant={showFavoritesOnly ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  >
+                    <Star className="h-4 w-4 mr-1" />
+                    お気に入りのみ
+                  </Button>
                 </div>
               </div>
               {historyQuery.isLoading ? (
@@ -878,6 +902,11 @@ export default function Home() {
                       } else if (historyDateFilter === "month") {
                         const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
                         if (itemDate < monthAgo) return false;
+                      }
+                      
+                      // お気に入りフィルター
+                      if (showFavoritesOnly && !(item as any).isFavorite) {
+                        return false;
                       }
                       
                       // キーワード検索
@@ -905,6 +934,14 @@ export default function Home() {
                           </p>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleToggleFavorite(item.id, !(item as any).isFavorite)}
+                            title="お気に入り"
+                          >
+                            <Star className={`h-4 w-4 ${(item as any).isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

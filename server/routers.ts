@@ -355,6 +355,27 @@ JSON形式で出力してください:
           }
           return { success };
         }),
+
+      toggleFavorite: protectedProcedure
+        .input(z.object({ id: z.number(), isFavorite: z.boolean() }))
+        .mutation(async ({ input, ctx }) => {
+          const success = await db.toggleFavorite(input.id, ctx.user.id, input.isFavorite);
+          if (!success) {
+            throw new Error("お気に入りの更新に失敗しました");
+          }
+          return { success, isFavorite: input.isFavorite };
+        }),
+
+      listFavorites: protectedProcedure.query(async ({ ctx }) => {
+        const favorites = await db.getFavoriteResumes(ctx.user.id);
+        return favorites.map((resume) => ({
+          id: resume.id,
+          createdAt: resume.createdAt,
+          resumeTextPreview: resume.resumeText.substring(0, 100) + "...",
+          jobDescriptionPreview: resume.jobDescription.substring(0, 100) + "...",
+          isFavorite: resume.isFavorite,
+        }));
+      }),
     }),
 
     // 評価機能

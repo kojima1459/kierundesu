@@ -38,6 +38,7 @@ export const resumes = mysqlTable("resumes", {
   customItems: text("customItems"), // JSON string for custom field definitions
   evaluationScore: int("evaluationScore"), // AI評価スコア（0-100）
   evaluationDetails: text("evaluationDetails"), // 評価詳細（JSON string）
+  isFavorite: int("isFavorite").notNull().default(0), // お気に入りフラグ（0: 通常, 1: お気に入り）
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
