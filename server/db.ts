@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, resumes, InsertResume, apiKeys, InsertApiKey, templates, Template, userTemplates, UserTemplate, InsertUserTemplate } from "../drizzle/schema";
+import { InsertUser, users, resumes, InsertResume, apiKeys, InsertApiKey, templates, Template, userTemplates, UserTemplate, InsertUserTemplate, favoritePatterns, FavoritePattern, InsertFavoritePattern } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -413,4 +413,59 @@ export async function updateResumeEvaluation(
     console.error("[Database] Failed to update resume evaluation:", error);
     return false;
   }
+}
+
+// ========== Favorite Patterns ==========
+
+export async function createFavoritePattern(data: InsertFavoritePattern) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(favoritePatterns).values(data);
+  return result;
+}
+
+export async function getUserFavoritePatterns(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db
+    .select()
+    .from(favoritePatterns)
+    .where(eq(favoritePatterns.userId, userId))
+    .orderBy(desc(favoritePatterns.createdAt));
+  
+  return result;
+}
+
+export async function getFavoritePatternById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db
+    .select()
+    .from(favoritePatterns)
+    .where(eq(favoritePatterns.id, id))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateFavoritePattern(id: number, data: Partial<InsertFavoritePattern>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(favoritePatterns)
+    .set(data)
+    .where(eq(favoritePatterns.id, id));
+}
+
+export async function deleteFavoritePattern(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .delete(favoritePatterns)
+    .where(eq(favoritePatterns.id, id));
 }

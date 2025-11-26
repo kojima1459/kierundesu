@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, FileText, Copy, RefreshCw, Plus, X, History, Download, Upload, Languages, Settings as SettingsIcon, Moon, Sun } from "lucide-react";
+import { Loader2, FileText, Copy, RefreshCw, Plus, X, History, Download, Upload, Languages, Settings as SettingsIcon, Moon, Sun, Star } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -116,6 +116,15 @@ export default function Home() {
     },
     onError: (error) => {
       toast.error(error.message || "生成に失敗しました");
+    },
+  });
+
+  const saveFavoriteMutation = trpc.favoritePattern.create.useMutation({
+    onSuccess: () => {
+      toast.success("お気に入りに保存しました");
+    },
+    onError: (error) => {
+      toast.error(error.message || "保存に失敗しました");
     },
   });
 
@@ -290,6 +299,36 @@ export default function Home() {
     if (templateId) {
       toast.success("テンプレートを選択しました");
     }
+  };
+
+  const handleSaveToFavorites = (patternIndex: number) => {
+    const pattern = generatedPatterns[patternIndex];
+    const evaluation = patternEvaluations[patternIndex];
+    
+    if (!pattern) {
+      toast.error("パターンが見つかりません");
+      return;
+    }
+
+    const patternName = prompt("お気に入りパターンの名前を入力してください", `パターン${patternIndex + 1}`);
+    
+    if (!patternName) {
+      return;
+    }
+
+    saveFavoriteMutation.mutate({
+      name: patternName,
+      resumeText,
+      jobDescription,
+      generatedContent: pattern,
+      customItems: customItems.length > 0 ? customItems.map(item => ({
+        key: item.key,
+        label: item.label,
+        charLimit: item.charLimit,
+      })) : undefined,
+      evaluationScore: evaluation?.score,
+      evaluationDetails: evaluation?.details,
+    });
   };
 
   const handleSelectUserTemplate = (templateId: number | null) => {
@@ -527,6 +566,17 @@ export default function Home() {
               className="flex-none"
             >
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="flex-none"
+            >
+              <a href="/favorites">
+                <Star className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">お気に入り</span>
+              </a>
             </Button>
             <Button variant="outline" asChild className="flex-1 sm:flex-none">
               <a href="/settings">
@@ -1034,6 +1084,20 @@ export default function Home() {
                     );
                   })}
                 </CardContent>
+                <div className="px-6 pb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSaveToFavorites(index);
+                    }}
+                  >
+                    <Star className="h-4 w-4 mr-2" />
+                    お気に入りに保存
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>

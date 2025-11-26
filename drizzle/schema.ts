@@ -98,3 +98,26 @@ export const userTemplates = mysqlTable("userTemplates", {
 
 export type UserTemplate = typeof userTemplates.$inferSelect;
 export type InsertUserTemplate = typeof userTemplates.$inferInsert;
+
+/**
+ * お気に入りパターンテーブル
+ * ユーザーが保存したお気に入りの生成パターン
+ */
+export const favoritePatterns = mysqlTable("favoritePatterns", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(), // パターンを保存したユーザー
+  name: varchar("name", { length: 255 }).notNull(), // パターン名（ユーザーが設定）
+  resumeText: text("resumeText").notNull(), // 元の職務経歴書
+  jobDescription: text("jobDescription").notNull(), // 元の求人情報
+  generatedContent: text("generatedContent").notNull(), // 生成されたコンテンツ（JSON string）
+  customItems: text("customItems"), // カスタム項目定義（JSON string）
+  evaluationScore: int("evaluationScore"), // AI評価スコア（0-100）
+  evaluationDetails: text("evaluationDetails"), // 評価詳細（JSON string）
+  notes: text("notes"), // ユーザーのメモ
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FavoritePattern = typeof favoritePatterns.$inferSelect;
+export type InsertFavoritePattern = typeof favoritePatterns.$inferInsert;
+

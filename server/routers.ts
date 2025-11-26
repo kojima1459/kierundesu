@@ -6,6 +6,7 @@ import { protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
 import * as db from "./db";
+import type { InsertFavoritePattern } from "../drizzle/schema";
 import { encryptApiKey, decryptApiKey } from "./encryption";
 import { invokeGemini, type GeminiMessage } from "./gemini";
 import { invokeLLMWithUserSettings } from "./llmHelper";
@@ -794,6 +795,128 @@ JSON形式で出力してください:
         }
 
         return result;
+      }),
+  }),
+
+  // お気に入りパターン用のrouter
+  favoritePattern: router({
+    // お気に入りパターンを作成
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1, "パターン名を入力してください"),
+          resumeText: z.string().min(1),
+          jobDescription: z.string().min(1),
+          generatedContent: z.record(z.string(), z.string()),
+          customItems: z
+            .array(
+              z.object({
+                key: z.string(),
+                label: z.string(),
+                charLimit: z.number().optional(),
+              })
+            )
+            .optional(),
+          evaluationScore: z.number().optional(),
+          evaluationDetails: z.any().optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { name, resumeText, jobDescription, generatedContent, customItems, evaluationScore, evaluationDetails, notes } = input;
+
+        await db.createFavoritePattern({
+          userId: ctx.user.id,
+          name,
+          resumeText,
+          jobDescription,
+          generatedContent: JSON.stringify(generatedContent),
+          customItems: customItems ? JSON.stringify(customItems) : null,
+          evaluationScore: evaluationScore || null,
+          evaluationDetails: evaluationDetails ? JSON.stringify(evaluationDetails) : null,
+          notes: notes || null,
+        });
+
+        return { success: true };
+      }),
+
+    // お気に入りパターン一覧を取得
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const patterns = await db.getUserFavoritePatterns(ctx.user.id);
+      return patterns.map((pattern) => ({
+        id: pattern.id,
+        name: pattern.name,
+        evaluationScore: pattern.evaluationScore,
+        notes: pattern.notes,
+        createdAt: pattern.createdAt,
+        updatedAt: pattern.updatedAt,
+      }));
+    }),
+
+    // お気に入りパターンの詳細を取得
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const pattern = await db.getFavoritePatternById(input.id);
+        if (!pattern || pattern.userId !== ctx.user.id) {
+          throw new Error("お気に入りパターンが見つかりません");
+        }
+
+        return {
+          id: pattern.id,
+          name: pattern.name,
+          resumeText: pattern.resumeText,
+          jobDescription: pattern.jobDescription,
+          generatedContent: JSON.parse(pattern.generatedContent),
+          customItems: pattern.customItems ? JSON.parse(pattern.customItems) : null,
+          evaluationScore: pattern.evaluationScore,
+          evaluationDetails: pattern.evaluationDetails ? JSON.parse(pattern.evaluationDetails) : null,
+          notes: pattern.notes,
+          createdAt: pattern.createdAt,
+          updatedAt: pattern.updatedAt,
+        };
+      }),
+
+    // お気に入りパターンを更新
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          notes: z.string().optional(),
+          generatedContent: z.record(z.string(), z.string()).optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { id, name, notes, generatedContent } = input;
+
+        // 権限チェック
+        const pattern = await db.getFavoritePatternById(id);
+        if (!pattern || pattern.userId !== ctx.user.id) {
+          throw new Error("お気に入りパターンが見つかりません");
+        }
+
+        const updateData: Partial<InsertFavoritePattern> = {};
+        if (name !== undefined) updateData.name = name;
+        if (notes !== undefined) updateData.notes = notes;
+        if (generatedContent !== undefined) updateData.generatedContent = JSON.stringify(generatedContent);
+
+        await db.updateFavoritePattern(id, updateData);
+        return { success: true };
+      }),
+
+    // お気に入りパターンを削除
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        // 権限チェック
+        const pattern = await db.getFavoritePatternById(input.id);
+        if (!pattern || pattern.userId !== ctx.user.id) {
+          throw new Error("お気に入りパターンが見つかりません");
+        }
+
+        await db.deleteFavoritePattern(input.id);
+        return { success: true };
       }),
   }),
 });
