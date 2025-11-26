@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, resumes, InsertResume } from "../drizzle/schema";
+import { InsertUser, users, resumes, InsertResume, apiKeys, InsertApiKey } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -159,6 +159,70 @@ export async function deleteResume(id: number, userId: number) {
     return true;
   } catch (error) {
     console.error("[Database] Failed to delete resume:", error);
+    return false;
+  }
+}
+
+// ========================================
+// APIキー関連のヘルパー関数
+// ========================================
+
+export async function upsertApiKey(userId: number, encryptedKey: string, keyType: string = "openai") {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert API key: database not available");
+    return false;
+  }
+
+  try {
+    const values: InsertApiKey = {
+      userId,
+      encryptedKey,
+      keyType,
+    };
+
+    await db.insert(apiKeys).values(values).onDuplicateKeyUpdate({
+      set: {
+        encryptedKey,
+        keyType,
+        updatedAt: new Date(),
+      },
+    });
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to upsert API key:", error);
+    return false;
+  }
+}
+
+export async function getApiKey(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get API key: database not available");
+    return undefined;
+  }
+
+  try {
+    const result = await db.select().from(apiKeys).where(eq(apiKeys.userId, userId)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error) {
+    console.error("[Database] Failed to get API key:", error);
+    return undefined;
+  }
+}
+
+export async function deleteApiKey(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot delete API key: database not available");
+    return false;
+  }
+
+  try {
+    await db.delete(apiKeys).where(eq(apiKeys.userId, userId));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete API key:", error);
     return false;
   }
 }

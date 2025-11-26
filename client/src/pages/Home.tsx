@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, FileText, Copy, RefreshCw, Plus, X, History, Download, Upload, Languages } from "lucide-react";
+import { Loader2, FileText, Copy, RefreshCw, Plus, X, History, Download, Upload, Languages, Settings as SettingsIcon } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -419,14 +419,21 @@ export default function Home() {
             <FileText className="h-10 w-10 text-primary" />
             <h1 className="text-3xl font-bold text-gray-900">職務経歴書最適化ツール</h1>
           </div>
-          <Dialog open={showHistory} onOpenChange={setShowHistory}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <History className="h-4 w-4 mr-2" />
-                履歴
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <a href="/settings">
+                <SettingsIcon className="h-4 w-4 mr-2" />
+                設定
+              </a>
+            </Button>
+            <Dialog open={showHistory} onOpenChange={setShowHistory}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <History className="h-4 w-4 mr-2" />
+                  履歴
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>生成履歴</DialogTitle>
                 <DialogDescription>過去に生成した職務経歴書の履歴</DialogDescription>
@@ -474,8 +481,9 @@ export default function Home() {
               ) : (
                 <p className="text-center text-muted-foreground py-8">履歴がありません</p>
               )}
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <p className="text-center text-gray-600 mb-8">

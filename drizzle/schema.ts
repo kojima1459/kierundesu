@@ -42,3 +42,19 @@ export const resumes = mysqlTable("resumes", {
 
 export type Resume = typeof resumes.$inferSelect;
 export type InsertResume = typeof resumes.$inferInsert;
+
+/**
+ * APIキー設定テーブル
+ * ユーザーごとのAPIキー（暗号化して保存）
+ */
+export const apiKeys = mysqlTable("apiKeys", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(), // ユーザーごとに1つのAPIキー
+  encryptedKey: text("encryptedKey").notNull(), // 暗号化されたAPIキー
+  keyType: varchar("keyType", { length: 64 }).notNull().default("openai"), // APIキーの種類（openai, anthropic等）
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = typeof apiKeys.$inferInsert;

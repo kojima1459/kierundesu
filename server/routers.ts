@@ -1,10 +1,12 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { invokeLLM } from "./_core/llm";
-import { saveResume, getUserResumes, getResumeById, deleteResume } from "./db";
+import * as db from "./db";
+import { encryptApiKey, decryptApiKey } from "./encryption";
 
 const STANDARD_ITEMS = [
   "summary",
@@ -268,7 +270,7 @@ ${outputItems.map((item) => `"${item}"`).join(", ")}
 
         // Save to history if requested
         if (saveHistory && ctx.user) {
-          await saveResume({
+          await db.saveResume({
             userId: ctx.user.id,
             resumeText,
             jobDescription,
@@ -372,7 +374,7 @@ JSON形式で出力してください:
     // History management
     history: router({
       list: protectedProcedure.query(async ({ ctx }) => {
-        const resumes = await getUserResumes(ctx.user.id);
+        const resumes = await db.getUserResumes(ctx.user.id);
         return resumes.map((resume) => ({
           id: resume.id,
           createdAt: resume.createdAt,
@@ -384,7 +386,7 @@ JSON形式で出力してください:
       get: protectedProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ input, ctx }) => {
-          const resume = await getResumeById(input.id, ctx.user.id);
+          const resume = await db.getResumeById(input.id, ctx.user.id);
           if (!resume) {
             throw new Error("履歴が見つかりません");
           }
@@ -401,7 +403,7 @@ JSON形式で出力してください:
       delete: protectedProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ input, ctx }) => {
-          const success = await deleteResume(input.id, ctx.user.id);
+          const success = await db.deleteResume(input.id, ctx.user.id);
           if (!success) {
             throw new Error("履歴の削除に失敗しました");
           }
@@ -470,6 +472,59 @@ JSON形式で出力してください:
         const result = JSON.parse(content);
         return { translation: result.translation };
       }),
+  }),
+
+  // APIキー設定用のrouter
+  apiKey: router({
+    // APIキーを取得（復号化して返す）
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const apiKeyRecord = await db.getApiKey(ctx.user.id);
+      if (!apiKeyRecord) {
+        return { hasKey: false, keyType: null };
+      }
+
+      try {
+        const decryptedKey = decryptApiKey(apiKeyRecord.encryptedKey);
+        // セキュリティのため、最初の4文字と最後の4文字だけ表示
+        const maskedKey =
+          decryptedKey.length > 8
+            ? `${decryptedKey.slice(0, 4)}...${decryptedKey.slice(-4)}`
+            : "****";
+        return {
+          hasKey: true,
+          keyType: apiKeyRecord.keyType,
+          maskedKey,
+        };
+      } catch (error) {
+        console.error("[APIKey] Failed to decrypt API key:", error);
+        return { hasKey: false, keyType: null };
+      }
+    }),
+
+    // APIキーを保存（暗号化して保存）
+    save: protectedProcedure
+      .input(
+        z.object({
+          apiKey: z.string().min(1, "APIキーを入力してください"),
+          keyType: z.string().default("openai"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const encryptedKey = encryptApiKey(input.apiKey);
+          const success = await db.upsertApiKey(ctx.user.id, encryptedKey, input.keyType);
+          return { success };
+        } catch (error) {
+          console.error("[APIKey] Failed to save API key:", error);
+          throw new Error("APIキーの保存に失敗しました");
+        }
+      }),
+
+    // APIキーを削除
+    delete: protectedProcedure.mutation(async ({ ctx }) => {
+      const success = await db.deleteApiKey(ctx.user.id);
+      return { success };
+    }),
   }),
 });
 
