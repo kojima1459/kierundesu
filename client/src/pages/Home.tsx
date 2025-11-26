@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TemplateSelector } from "@/components/TemplateSelector";
+import Footer from "@/components/Footer";
 
 type OutputItem = {
   key: string;
@@ -623,6 +624,17 @@ export default function Home() {
               asChild
               className="flex-none"
             >
+              <a href="/guide">
+                <FileText className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">ガイド</span>
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="flex-none"
+            >
               <a href="/favorites">
                 <Star className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">お気に入り</span>
@@ -1202,6 +1214,7 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+      <Footer />
     </div>
   );
 }

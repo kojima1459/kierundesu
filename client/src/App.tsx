@@ -8,6 +8,8 @@ import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import MyTemplates from "./pages/MyTemplates";
 import Favorites from "./pages/Favorites";
+import Guide from "./pages/Guide";
+import Privacy from "./pages/Privacy";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -17,6 +19,8 @@ function Router() {
       <Route path={"/settings"} component={Settings} />
       <Route path={"/my-templates"} component={MyTemplates} />
       <Route path={"/favorites"} component={Favorites} />
+      <Route path={"/guide"} component={Guide} />
+      <Route path={"/privacy"} component={Privacy} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

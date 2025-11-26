@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import Footer from "@/components/Footer";
 
 export default function MyTemplates() {
   const { user, loading: authLoading } = useAuth();
@@ -328,6 +329,7 @@ export default function MyTemplates() {
           </DialogContent>
         </Dialog>
       </div>
+      <Footer />
     </div>
   );
 }

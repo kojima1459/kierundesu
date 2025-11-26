@@ -12,6 +12,7 @@ import { Loader2, Star, Trash2, Edit, FileText, ArrowLeft, Copy } from "lucide-r
 import { DiffHighlight } from "@/components/DiffHighlight";
 import { calculateDifferenceRate } from "@/lib/diffUtils";
 import { getLoginUrl } from "@/const";
+import Footer from "@/components/Footer";
 
 export default function Favorites() {
   const { user, loading: authLoading } = useAuth();
@@ -403,6 +404,7 @@ export default function Favorites() {
           </DialogContent>
         </Dialog>
       </div>
+      <Footer />
     </div>
   );
 }
