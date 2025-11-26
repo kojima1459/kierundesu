@@ -647,9 +647,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 md:py-8 px-4">
-      <div className="container max-w-6xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 md:mb-6">
           <div className="flex items-center gap-2 md:gap-3">
             <FileText className="h-8 w-8 md:h-10 md:w-10 text-primary" />
             <h1 className="text-xl md:text-3xl font-bold text-gray-900">職務経歴書最適化ツール</h1>
@@ -756,7 +756,7 @@ export default function Home() {
         </p>
 
         {/* 機能説明セクション */}
-        <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <Card className="mb-4 md:mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-600" />
@@ -797,10 +797,10 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="mb-6">
+        <Card className="mb-4 md:mb-6">
           <CardHeader>
             <CardTitle>入力情報</CardTitle>
-          </CardHeader>          <CardContent className="space-y-6">
+          </CardHeader>          <CardContent className="space-y-4 md:space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label htmlFor="resume" className="text-base font-semibold">
@@ -903,9 +903,9 @@ export default function Home() {
 
             <div>
               <Label className="text-base font-semibold mb-3 block">4. 出力項目を選択</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {allItems.map((item) => (
-                  <div key={item.key} className="flex items-center space-x-2 p-3 border rounded-lg">
+                  <div key={item.key} className="flex items-center space-x-2 p-2.5 border rounded-lg">
                     <Checkbox
                       id={item.key}
                       checked={selectedItems.includes(item.key)}
@@ -927,7 +927,7 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="mt-4 p-4 border rounded-lg bg-muted/50">
+              <div className="mt-3 p-3 border rounded-lg bg-muted/50">
                 <Label className="text-sm font-semibold mb-2 block">カスタム項目を追加</Label>
                 <div className="flex gap-2">
                   <Input
@@ -952,11 +952,11 @@ export default function Home() {
 
             <div>
               <Label className="text-base font-semibold mb-3 block">5. 文字数設定</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {allItems
                   .filter((item) => selectedItems.includes(item.key))
                   .map((item) => (
-                    <div key={item.key} className="flex items-center gap-3">
+                    <div key={item.key} className="flex items-center gap-2">
                       <Label className="flex-1">{item.label}</Label>
                       <Input
                         type="number"
@@ -984,7 +984,7 @@ export default function Home() {
                   selectedItems.length === 0 ||
                   generateMutation.isPending
                 }
-                className="w-full h-12 text-lg"
+                className="w-full h-11 text-base"
               >
                 {generateMutation.isPending ? (
                   <>
@@ -1039,32 +1039,32 @@ export default function Home() {
         {Object.keys(generatedContent).length > 0 && (
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <CardTitle>生成結果</CardTitle>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleCopyAll} variant="outline" size="sm">
-                    <Copy className="h-4 w-4 mr-2" />
-                    全項目をコピー
+                <div className="flex flex-wrap gap-1.5">
+                  <Button onClick={handleCopyAll} variant="outline" size="sm" className="text-xs">
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    コピー
                   </Button>
-                  <Button onClick={handleDownloadWord} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
+                  <Button onClick={handleDownloadWord} variant="outline" size="sm" className="text-xs">
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
                     Word
                   </Button>
-                  <Button onClick={handleDownloadPDF} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
+                  <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="text-xs">
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
                     PDF
                   </Button>
-                  <Button onClick={handleDownloadText} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
+                  <Button onClick={handleDownloadText} variant="outline" size="sm" className="text-xs">
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
                     テキスト
                   </Button>
-                  <Button onClick={handleDownloadMarkdown} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
+                  <Button onClick={handleDownloadMarkdown} variant="outline" size="sm" className="text-xs">
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
                     Markdown
                   </Button>
-                  <Button onClick={handleShareToLinkedIn} variant="outline" size="sm" className="bg-[#0A66C2] text-white hover:bg-[#004182]">
-                    <Share2 className="h-4 w-4 mr-2" />
-                    LinkedInでシェア
+                  <Button onClick={handleShareToLinkedIn} variant="outline" size="sm" className="bg-[#0A66C2] text-white hover:bg-[#004182] text-xs">
+                    <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                    LinkedIn
                   </Button>
                 </div>
               </div>
