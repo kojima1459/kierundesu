@@ -16,6 +16,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { exportToWord, exportToPDF, exportToText, exportToMarkdown, downloadBlob } from "@/lib/exportUtils";
 import { shareToLinkedIn, ShareStats, generateLinkedInShareText } from "@/lib/linkedinShare";
 import { LinkedInShareDialog } from "@/components/LinkedInShareDialog";
+import { HistoryDetailDialog } from "@/components/HistoryDetailDialog";
 import { useKeyboardShortcuts, getShortcutLabel, KeyboardShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import {
@@ -82,6 +83,10 @@ export default function Home() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareDialogText, setShareDialogText] = useState("");
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+  const [showHistoryDetail, setShowHistoryDetail] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<any | null>(null);
+  const [historySearchKeyword, setHistorySearchKeyword] = useState("");
+  const [historyDateFilter, setHistoryDateFilter] = useState<"all" | "today" | "week" | "month">("all");
   const { scheduleSave, loadData, clearData, lastSaved, isSaving } = useAutoSave();
 
   const evaluateMutation = trpc.resume.evaluate.useMutation();
@@ -816,13 +821,76 @@ export default function Home() {
                 <DialogTitle>生成履歴</DialogTitle>
                 <DialogDescription>過去に生成した職務経歴書の履歴</DialogDescription>
               </DialogHeader>
+              <div className="space-y-3 mb-4">
+                <Input
+                  placeholder="キーワードで検索..."
+                  value={historySearchKeyword}
+                  onChange={(e) => setHistorySearchKeyword(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant={historyDateFilter === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setHistoryDateFilter("all")}
+                  >
+                    すべて
+                  </Button>
+                  <Button
+                    variant={historyDateFilter === "today" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setHistoryDateFilter("today")}
+                  >
+                    今日
+                  </Button>
+                  <Button
+                    variant={historyDateFilter === "week" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setHistoryDateFilter("week")}
+                  >
+                    1週間
+                  </Button>
+                  <Button
+                    variant={historyDateFilter === "month" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setHistoryDateFilter("month")}
+                  >
+                    1ヶ月
+                  </Button>
+                </div>
+              </div>
               {historyQuery.isLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               ) : historyQuery.data && historyQuery.data.length > 0 ? (
                 <div className="space-y-2">
-                  {historyQuery.data.map((item) => (
+                  {historyQuery.data
+                    .filter((item) => {
+                      // 日付フィルター
+                      const now = new Date();
+                      const itemDate = new Date(item.createdAt);
+                      if (historyDateFilter === "today") {
+                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        if (itemDate < today) return false;
+                      } else if (historyDateFilter === "week") {
+                        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        if (itemDate < weekAgo) return false;
+                      } else if (historyDateFilter === "month") {
+                        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                        if (itemDate < monthAgo) return false;
+                      }
+                      
+                      // キーワード検索
+                      if (historySearchKeyword) {
+                        const keyword = historySearchKeyword.toLowerCase();
+                        const resumeMatch = item.resumeTextPreview.toLowerCase().includes(keyword);
+                        const jobMatch = item.jobDescriptionPreview.toLowerCase().includes(keyword);
+                        if (!resumeMatch && !jobMatch) return false;
+                      }
+                      
+                      return true;
+                    })
+                    .map((item) => (
                     <Card key={item.id} className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -837,6 +905,17 @@ export default function Home() {
                           </p>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              const data = await getHistoryMutation.mutateAsync({ id: item.id });
+                              setSelectedHistoryItem(data);
+                              setShowHistoryDetail(true);
+                            }}
+                          >
+                            詳細
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -1430,6 +1509,22 @@ export default function Home() {
         onOpenChange={setShowShareDialog}
         defaultText={shareDialogText}
         onShare={handleConfirmShare}
+      />
+      <HistoryDetailDialog
+        open={showHistoryDetail}
+        onOpenChange={setShowHistoryDetail}
+        historyItem={selectedHistoryItem}
+        onUseContent={(content) => {
+          setGeneratedContent(content);
+          setEditedContent(content);
+        }}
+        onRegenerate={(resumeText, jobDescription, selectedItems) => {
+          setResumeText(resumeText);
+          setJobDescription(jobDescription);
+          setSelectedItems(selectedItems);
+          handleGenerate();
+        }}
+        allItems={allItems}
       />
       
       {/* ショートカットヘルプダイアログ */}
