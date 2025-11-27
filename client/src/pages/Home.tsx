@@ -751,6 +751,20 @@ export default function Home() {
     }
   }, [user, apiKeyQuery.data]);
 
+  // 初回訪問時のお知らせ表示
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('hasVisitedBefore');
+    const announcementDismissed = localStorage.getItem('announcementDismissedForever');
+    
+    if (!hasVisited && !announcementDismissed) {
+      // 初回訪問でお知らせを表示
+      setTimeout(() => {
+        setShowAnnouncement(true);
+      }, 1000); // 1秒後に表示
+      localStorage.setItem('hasVisitedBefore', 'true');
+    }
+  }, []);
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1743,6 +1757,9 @@ export default function Home() {
       <AnnouncementDialog
         open={showAnnouncement}
         onOpenChange={setShowAnnouncement}
+        onDismissForever={() => {
+          localStorage.setItem('announcementDismissedForever', 'true');
+        }}
       />
 
       {/* 英語変換ダイアログ */}

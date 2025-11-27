@@ -13,6 +13,7 @@ import { Sparkles, CheckCircle2, Clock } from "lucide-react";
 interface AnnouncementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDismissForever?: () => void;
 }
 
 const COMING_SOON_FEATURES = [
@@ -60,7 +61,13 @@ const COMING_SOON_FEATURES = [
   },
 ];
 
-export function AnnouncementDialog({ open, onOpenChange }: AnnouncementDialogProps) {
+export function AnnouncementDialog({ open, onOpenChange, onDismissForever }: AnnouncementDialogProps) {
+  const handleDismissForever = () => {
+    if (onDismissForever) {
+      onDismissForever();
+    }
+    onOpenChange(false);
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -123,10 +130,17 @@ export function AnnouncementDialog({ open, onOpenChange }: AnnouncementDialogPro
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-6">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            閉じる
-          </Button>
+        <div className="flex justify-between items-center gap-3 mt-6">
+          {onDismissForever && (
+            <Button variant="ghost" onClick={handleDismissForever} className="text-muted-foreground">
+              今後表示しない
+            </Button>
+          )}
+          <div className="flex gap-3 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              閉じる
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
