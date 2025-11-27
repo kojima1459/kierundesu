@@ -78,6 +78,15 @@
     "success": "Success",
     "copied": "Copied",
     "saved": "Saved",
+    "items": {
+      "summary": "Summary",
+      "career_history": "Career History",
+      "motivation": "Motivation",
+      "self_pr": "Self PR",
+      "why_company": "Why This Company",
+      "what_to_achieve": "What to Achieve"
+    },
+    "inputInfo": "Input Information",
     "features": {
       "input": "Input resume and job posting",
       "selectOutput": "Select output items (summary, motivation, etc.)",
@@ -126,6 +135,17 @@
     "search": "Search",
     "reset": "Reset",
     "noHistory": "No history",
+    "description": "History of previously generated resumes",
+    "searchPlaceholder": "Search by keyword...",
+    "all": "All",
+    "today": "Today",
+    "week": "1 Week",
+    "month": "1 Month",
+    "favoritesOnly": "Favorites Only",
+    "resume": "Resume",
+    "jobInfo": "Job Info",
+    "detail": "Detail",
+    "load": "Load",
     "createdAt": "Created: {{date}}",
     "view": "View Details",
     "delete": "Delete",
@@ -133,6 +153,35 @@
     "regenerate": "Regenerate",
     "favorite": "Add to Favorites",
     "unfavorite": "Remove from Favorites"
+  },
+  "patterns": {
+    "title": "Select from Generated Patterns",
+    "description": "Generated {{count}} different expression patterns. Please select the most suitable one.",
+    "sortByScore": "Sort by Score",
+    "evaluating": "AI Evaluating...",
+    "pattern": "Pattern {{number}}",
+    "selected": "Selected",
+    "aiScore": "AI Score",
+    "relevance": "Relevance",
+    "clarity": "Clarity",
+    "impact": "Impact",
+    "completeness": "Completeness",
+    "feedback": "Feedback",
+    "saveToFavorites": "Save to Favorites"
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "description": "Use the following shortcuts for more efficient operation."
+  },
+  "apiKeyError": {
+    "title": "API Key Not Set",
+    "description": "API key configuration is required to use AI features.",
+    "message": "Currently, no API keys for OpenAI, Gemini, or Claude are set. Please set an API key by following these steps:",
+    "step1": "Click the 'Go to API Settings' button",
+    "step2": "Select the AI provider you want to use (OpenAI / Gemini / Claude)",
+    "step3": "Enter and save the API key",
+    "helpTitle": "If you don't know how to get an API key:",
+    "helpMessage": "The guide page provides detailed instructions on how to obtain API keys for each provider."
   },
   "favorites": {
     "title": "Favorites",

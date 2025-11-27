@@ -41,17 +41,18 @@ type OutputItem = {
   charLimit: number;
 };
 
-const STANDARD_ITEMS: OutputItem[] = [
-  { key: "summary", label: "職務要約", charLimit: 350 },
-  { key: "career_history", label: "職務経歴", charLimit: 800 },
-  { key: "motivation", label: "志望動機", charLimit: 400 },
-  { key: "self_pr", label: "自己PR", charLimit: 600 },
-  { key: "why_company", label: "なぜ御社か", charLimit: 400 },
-  { key: "what_to_achieve", label: "企業で実現したいこと", charLimit: 400 },
-];
-
 export default function Home() {
   const { t } = useTranslation();
+  
+  // STANDARD_ITEMSを翻訳対応で動的に生成
+  const STANDARD_ITEMS: OutputItem[] = [
+    { key: "summary", label: t('home.items.summary'), charLimit: 350 },
+    { key: "career_history", label: t('home.items.career_history'), charLimit: 800 },
+    { key: "motivation", label: t('home.items.motivation'), charLimit: 400 },
+    { key: "self_pr", label: t('home.items.self_pr'), charLimit: 600 },
+    { key: "why_company", label: t('home.items.why_company'), charLimit: 400 },
+    { key: "what_to_achieve", label: t('home.items.what_to_achieve'), charLimit: 400 },
+  ];
   const { user, loading: authLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showApiKeyBanner, setShowApiKeyBanner] = useState(false);
@@ -809,11 +810,10 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-100 mb-2">
-                  APIキーが設定されていません
+                  {t('home.apiKeyNotSet')}
                 </h3>
                 <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
-                  AI機能を使用するには、OpenAI、Gemini、ClaudeのいずれかのAPIキーを設定する必要があります。
-                  詳しい取得方法はガイドページをご覧ください。
+                  {t('home.apiKeyDescription')}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -821,14 +821,14 @@ export default function Home() {
                     asChild
                     className="bg-amber-600 hover:bg-amber-700 text-white"
                   >
-                    <a href="/api-settings">API設定ページへ</a>
+                    <a href="/api-settings">{t('home.goToApiSettings')}</a>
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     asChild
                   >
-                    <a href="/guide">ガイドを見る</a>
+                    <a href="/guide">{t('home.viewGuide')}</a>
                   </Button>
                   <Button
                     size="sm"
@@ -838,7 +838,7 @@ export default function Home() {
                       localStorage.setItem('apiKeyBannerDismissed', 'true');
                     }}
                   >
-                    閉じる
+                    {t('home.close')}
                   </Button>
                 </div>
               </div>
@@ -940,12 +940,12 @@ export default function Home() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>生成履歴</DialogTitle>
-                <DialogDescription>過去に生成した職務経歴書の履歴</DialogDescription>
+                <DialogTitle>{t('history.title')}</DialogTitle>
+                <DialogDescription>{t('history.description')}</DialogDescription>
               </DialogHeader>
               <div className="space-y-3 mb-4">
                 <Input
-                  placeholder="キーワードで検索..."
+                  placeholder={t('history.searchPlaceholder')}
                   value={historySearchKeyword}
                   onChange={(e) => setHistorySearchKeyword(e.target.value)}
                 />
@@ -955,28 +955,28 @@ export default function Home() {
                     size="sm"
                     onClick={() => setHistoryDateFilter("all")}
                   >
-                    すべて
+                    {t('history.all')}
                   </Button>
                   <Button
                     variant={historyDateFilter === "today" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setHistoryDateFilter("today")}
                   >
-                    今日
+                    {t('history.today')}
                   </Button>
                   <Button
                     variant={historyDateFilter === "week" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setHistoryDateFilter("week")}
                   >
-                    1週間
+                    {t('history.week')}
                   </Button>
                   <Button
                     variant={historyDateFilter === "month" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setHistoryDateFilter("month")}
                   >
-                    1ヶ月
+                    {t('history.month')}
                   </Button>
                   <div className="w-px h-6 bg-border" />
                   <Button
@@ -985,7 +985,7 @@ export default function Home() {
                     onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                   >
                     <Star className="h-4 w-4 mr-1" />
-                    お気に入りのみ
+                    {t('history.favoritesOnly')}
                   </Button>
                 </div>
               </div>
@@ -1034,10 +1034,10 @@ export default function Home() {
                             {new Date(item.createdAt).toLocaleString("ja-JP")}
                           </p>
                           <p className="text-sm mb-1">
-                            <strong>職務経歴書:</strong> {item.resumeTextPreview}
+                            <strong>{t('history.resume')}:</strong> {item.resumeTextPreview}
                           </p>
                           <p className="text-sm">
-                            <strong>求人情報:</strong> {item.jobDescriptionPreview}
+                            <strong>{t('history.jobInfo')}:</strong> {item.jobDescriptionPreview}
                           </p>
                         </div>
                         <div className="flex gap-2">
@@ -1045,7 +1045,7 @@ export default function Home() {
                             size="sm"
                             variant="ghost"
                             onClick={() => handleToggleFavorite(item.id, !(item as any).isFavorite)}
-                            title="お気に入り"
+                            title={t('history.favorite')}
                           >
                             <Star className={`h-4 w-4 ${(item as any).isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                           </Button>
@@ -1058,14 +1058,14 @@ export default function Home() {
                               setShowHistoryDetail(true);
                             }}
                           >
-                            詳細
+                            {t('history.detail')}
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleLoadHistory(item.id)}
                           >
-                            読込
+                            {t('history.load')}
                           </Button>
                           <Button
                             size="sm"
@@ -1080,7 +1080,7 @@ export default function Home() {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-8">履歴がありません</p>
+                <p className="text-center text-muted-foreground py-8">{t('history.noHistory')}</p>
               )}
               </DialogContent>
             </Dialog>
@@ -1096,38 +1096,37 @@ export default function Home() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-600" />
-              職務経歴書最適化ツールの使い方
+              {t('home.description')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-gray-700">
-              求人情報に合わせて、あなたの職務経歴書を最適化します
+              {t('home.descriptionText')}
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-blue-900">📝 基本機能</h4>
+                <h4 className="font-semibold text-sm text-blue-900">📝 {t('home.basicFeatures')}</h4>
                 <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                  <li>職務経歴書と求人情報を入力</li>
-                  <li>出力項目を選択（職務要約、志望動機など）</li>
-                  <li>文字数を設定して生成開始</li>
-                  <li>PDF/Word/テキスト/Markdown形式でエクスポート</li>
+                  <li>{t('home.features.input')}</li>
+                  <li>{t('home.features.selectOutput')}</li>
+                  <li>{t('home.features.setCharacters')}</li>
+                  <li>{t('home.features.export')}</li>
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-blue-900">✨ 高度な機能</h4>
+                <h4 className="font-semibold text-sm text-blue-900">✨ {t('home.advancedFeatures')}</h4>
                 <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                  <li><strong>複数パターン生成:</strong> 一度に3パターン生成して比較</li>
-                  <li><strong>AI自動評価:</strong> 求人との適合度をスコア化</li>
-                  <li><strong>お気に入り保存:</strong> 良いパターンを保存・比較</li>
-                  <li><strong>テンプレート:</strong> 業界別・独自テンプレート</li>
+                  <li><strong>{t('home.features.multiplePatterns')}</strong></li>
+                  <li><strong>{t('home.features.aiEvaluation')}</strong></li>
+                  <li><strong>{t('home.features.favoritePatterns')}</strong></li>
+                  <li><strong>{t('home.features.templates')}</strong></li>
                 </ul>
               </div>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <h4 className="font-semibold text-sm text-blue-900 mb-2">🚀 NEW! 複数求人への一括適用機能（近日公開予定）</h4>
+              <h4 className="font-semibold text-sm text-blue-900 mb-2">🚀 {t('home.newFeature')}</h4>
               <p className="text-sm text-gray-600">
-                1つの職務経歴書を複数の求人に対して一括で最適化し、比較できる機能を開発中です。
-                複数の企業に応募する際の効率が大幅に向上します！
+                {t('home.newFeatureDescription')}
               </p>
             </div>
           </CardContent>
@@ -1135,12 +1134,12 @@ export default function Home() {
 
         <Card className="mb-4 md:mb-6">
           <CardHeader>
-            <CardTitle>入力情報</CardTitle>
+            <CardTitle>{t('home.inputInfo')}</CardTitle>
           </CardHeader>          <CardContent className="space-y-4 md:space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label htmlFor="resume" className="text-base font-semibold">
-                  1. 職務経歴書
+                  {t('home.resume')}
                 </Label>
                 <div>
                   <input
@@ -1162,7 +1161,7 @@ export default function Home() {
                     ) : (
                       <Upload className="h-4 w-4 mr-2" />
                     )}
-                    ファイルアップロード
+                    {t('home.fileUpload')}
                   </Button>
                 </div>
               </div>
@@ -1183,7 +1182,7 @@ export default function Home() {
               >
                 <Textarea
                   id="resume"
-                  placeholder="あなたの職務経歴書をここに貼り付けてください。またはPDF/Wordファイルをアップロード、またはドラッグ&ドロップできます..."
+                  placeholder={t('home.resumePlaceholder')}
                   value={resumeText}
                   onChange={(e) => setResumeText(e.target.value)}
                   className="min-h-[200px]"
@@ -1194,7 +1193,7 @@ export default function Home() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label htmlFor="job" className="text-base font-semibold">
-                  2. 求人情報
+                  {t('home.jobInfo')}
                 </Label>
                 <div>
                   <input
@@ -1216,7 +1215,7 @@ export default function Home() {
                     ) : (
                       <Upload className="h-4 w-4 mr-2" />
                     )}
-                    ファイルアップロード
+                    {t('home.fileUpload')}
                   </Button>
                 </div>
               </div>
@@ -1224,7 +1223,7 @@ export default function Home() {
                 <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-blue-700 font-medium">
-                      画像からテキストを抽出中...
+                      {t('toast.ocrProcessing')}
                     </span>
                     <span className="text-sm text-blue-700 font-medium">
                       {Math.round(ocrProgress * 100)}%
@@ -1272,7 +1271,7 @@ export default function Home() {
               >
                 <Textarea
                   id="job"
-                  placeholder="応募する求人情報をここに貼り付けてください。またはPDF/Wordファイル、画像ファイルをアップロード、またはドラッグ&ドロップできます..."
+                  placeholder={t('home.jobInfoPlaceholder')}
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
                   className="min-h-[200px]"
@@ -1282,12 +1281,12 @@ export default function Home() {
             </div>
 
             <div>
-              <Label className="text-base font-semibold mb-3 block">3. テンプレートを選択（オプション）</Label>
+              <Label className="text-base font-semibold mb-3 block">{t('home.templateSection')}</Label>
               <TemplateSelector onSelectTemplate={handleSelectTemplate} onSelectUserTemplate={handleSelectUserTemplate} />
             </div>
 
             <div>
-              <Label className="text-base font-semibold mb-3 block">4. 出力項目を選択</Label>
+              <Label className="text-base font-semibold mb-3 block">{t('home.outputSection')}</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {allItems.map((item) => (
                   <div key={item.key} className="flex items-center space-x-2 p-2.5 border rounded-lg">
@@ -1313,17 +1312,17 @@ export default function Home() {
               </div>
 
               <div className="mt-3 p-3 border rounded-lg bg-muted/50">
-                <Label className="text-sm font-semibold mb-2 block">カスタム項目を追加</Label>
+                <Label className="text-sm font-semibold mb-2 block">{t('home.customItemSection')}</Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="項目名（例：なぜ今転職するのか）"
+                    placeholder={t('home.customItemPlaceholder')}
                     value={newCustomLabel}
                     onChange={(e) => setNewCustomLabel(e.target.value)}
                     className="flex-1"
                   />
                   <Input
                     type="number"
-                    placeholder="文字数"
+                    placeholder={t('home.characters')}
                     value={newCustomCharLimit}
                     onChange={(e) => setNewCustomCharLimit(e.target.value)}
                     className="w-24"
@@ -1336,7 +1335,7 @@ export default function Home() {
             </div>
 
             <div>
-              <Label className="text-base font-semibold mb-3 block">5. 文字数設定</Label>
+              <Label className="text-base font-semibold mb-3 block">{t('home.characterSettings')}</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {allItems
                   .filter((item) => selectedItems.includes(item.key))
@@ -1374,17 +1373,17 @@ export default function Home() {
                 {generateMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    生成中...
+                    {t('home.loading')}
                   </>
                 ) : (
-                  "生成開始"
+                  t('home.generate')
                 )}
               </Button>
 
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 flex-1">
                   <Label htmlFor="pattern-count" className="text-sm whitespace-nowrap">
-                    パターン数:
+                    {t('home.patternCount')}
                   </Label>
                   <Input
                     id="pattern-count"
@@ -1409,11 +1408,11 @@ export default function Home() {
                 >
                   {generateMultipleMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      複数生成中...
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {t('home.loading')}
                     </>
                   ) : (
-                    "複数パターン生成"
+                    t('home.enableEvaluation')
                   )}
                 </Button>
               </div>
@@ -1474,7 +1473,7 @@ export default function Home() {
                           onClick={() => handleCopy(editedContent[key] || generatedContent[key])}
                         >
                           <Copy className="h-4 w-4 mr-1" />
-                          コピー
+                          {t('home.copy')}
                         </Button>
                         <Button
                           size="sm"
@@ -1487,7 +1486,7 @@ export default function Home() {
                               translatingItem === key ? "animate-spin" : ""
                             }`}
                           />
-                          英語
+                          {t('home.translate')}
                         </Button>
                         <Button
                           size="sm"
@@ -1500,7 +1499,7 @@ export default function Home() {
                               regenerateMutation.isPending ? "animate-spin" : ""
                             }`}
                           />
-                          再生成
+                          {t('home.regenerate')}
                         </Button>
                       </div>
                     </div>
@@ -1527,9 +1526,9 @@ export default function Home() {
       <Dialog open={showPatternDialog} onOpenChange={setShowPatternDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>生成されたパターンから選択してください</DialogTitle>
+            <DialogTitle>{t('patterns.title')}</DialogTitle>
             <DialogDescription>
-              {generatedPatterns.length}個の異なる表現パターンを生成しました。最適なものを選択してください。
+              {t('patterns.description', { count: generatedPatterns.length })}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-between mb-4">
@@ -1540,13 +1539,13 @@ export default function Home() {
                 onCheckedChange={(checked) => setSortByScore(checked as boolean)}
               />
               <Label htmlFor="sort-by-score" className="cursor-pointer">
-                スコア順にソート
+                {t('patterns.sortByScore')}
               </Label>
             </div>
             {isEvaluating && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                AI評価中...
+                {t('patterns.evaluating')}
               </div>
             )}
           </div>
@@ -1573,10 +1572,10 @@ export default function Home() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">
-                      パターン {index + 1}
+                      {t('patterns.pattern', { number: index + 1 })}
                       {selectedPatternIndex === index && (
                         <span className="ml-2 text-sm text-blue-600 font-normal">
-                          (選択中)
+                          ({t('patterns.selected')})
                         </span>
                       )}
                     </CardTitle>
@@ -1586,7 +1585,7 @@ export default function Home() {
                           {patternEvaluations[index].score}点
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          AI評価スコア
+                          {t('patterns.aiScore')}
                         </div>
                       </div>
                     )}
@@ -1594,26 +1593,26 @@ export default function Home() {
                   {patternEvaluations[index]?.details && (
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">関連性:</span>
+                        <span className="text-muted-foreground">{t('patterns.relevance')}:</span>
                         <span className="font-semibold">{patternEvaluations[index].details.relevance}点</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">明確性:</span>
+                        <span className="text-muted-foreground">{t('patterns.clarity')}:</span>
                         <span className="font-semibold">{patternEvaluations[index].details.clarity}点</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">インパクト:</span>
+                        <span className="text-muted-foreground">{t('patterns.impact')}:</span>
                         <span className="font-semibold">{patternEvaluations[index].details.impact}点</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">完全性:</span>
+                        <span className="text-muted-foreground">{t('patterns.completeness')}:</span>
                         <span className="font-semibold">{patternEvaluations[index].details.completeness}点</span>
                       </div>
                     </div>
                   )}
                   {patternEvaluations[index]?.details?.feedback && (
                     <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">改善提案:</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t('patterns.feedback')}:</p>
                       <p className="text-sm text-gray-700">{patternEvaluations[index].details.feedback}</p>
                     </div>
                   )}
@@ -1644,7 +1643,7 @@ export default function Home() {
                     }}
                   >
                     <Star className="h-4 w-4 mr-2" />
-                    お気に入りに保存
+                    {t('patterns.saveToFavorites')}
                   </Button>
                 </div>
               </Card>
@@ -1679,9 +1678,9 @@ export default function Home() {
       <Dialog open={showShortcutHelp} onOpenChange={setShowShortcutHelp}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>キーボードショートカット</DialogTitle>
+            <DialogTitle>{t('shortcuts.title')}</DialogTitle>
             <DialogDescription>
-              以下のショートカットを使用して、より効率的に操作できます。
+              {t('shortcuts.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1703,30 +1702,29 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <SettingsIcon className="h-5 w-5" />
-              APIキーが設定されていません
+              {t('apiKeyError.title')}
             </DialogTitle>
             <DialogDescription>
-              AI機能を使用するには、APIキーの設定が必要です。
+              {t('apiKeyError.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
               <p className="text-sm text-amber-900 dark:text-amber-100 mb-3">
-                現在、OpenAI、Gemini、ClaudeのいずれのAPIキーも設定されていません。
-                以下の手順でAPIキーを設定してください：
+                {t('apiKeyError.message')}
               </p>
               <ol className="text-sm text-amber-800 dark:text-amber-200 space-y-2 list-decimal list-inside">
-                <li>「API設定ページへ」ボタンをクリック</li>
-                <li>使用したいAIプロバイダー（OpenAI / Gemini / Claude）を選択</li>
-                <li>APIキーを入力して保存</li>
+                <li>{t('apiKeyError.step1')}</li>
+                <li>{t('apiKeyError.step2')}</li>
+                <li>{t('apiKeyError.step3')}</li>
               </ol>
             </div>
             <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <p className="text-sm text-blue-900 dark:text-blue-100 mb-2">
-                <strong>APIキーの取得方法がわからない場合：</strong>
+                <strong>{t('apiKeyError.helpTitle')}</strong>
               </p>
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                ガイドページに各プロバイダーのAPIキー取得方法を詳しく説明しています。
+                {t('apiKeyError.helpMessage')}
               </p>
             </div>
             <div className="flex gap-2 justify-end">
@@ -1734,19 +1732,19 @@ export default function Home() {
                 variant="outline"
                 onClick={() => setShowApiKeyErrorDialog(false)}
               >
-                キャンセル
+                {t('home.cancel')}
               </Button>
               <Button
                 variant="outline"
                 asChild
               >
-                <a href="/guide" target="_blank">ガイドを見る</a>
+                <a href="/guide" target="_blank">{t('home.viewGuide')}</a>
               </Button>
               <Button
                 asChild
                 className="bg-amber-600 hover:bg-amber-700 text-white"
               >
-                <a href="/api-settings">API設定ページへ</a>
+                <a href="/api-settings">{t('home.goToApiSettings')}</a>
               </Button>
             </div>
           </div>

@@ -78,6 +78,15 @@
     "success": "成功しました",
     "copied": "コピーしました",
     "saved": "保存しました",
+    "items": {
+      "summary": "職務要約",
+      "career_history": "職務経歴",
+      "motivation": "志望動機",
+      "self_pr": "自己PR",
+      "why_company": "なぜ御社か",
+      "what_to_achieve": "企業で実現したいこと"
+    },
+    "inputInfo": "入力情報",
     "features": {
       "input": "職務経歴書と求人情報を入力",
       "selectOutput": "出力項目を選択（職務要約、志望動機など）",
@@ -126,6 +135,17 @@
     "search": "検索",
     "reset": "リセット",
     "noHistory": "履歴がありません",
+    "description": "過去に生成した職務経歴書の履歴",
+    "searchPlaceholder": "キーワードで検索...",
+    "all": "すべて",
+    "today": "今日",
+    "week": "1週間",
+    "month": "1ヶ月",
+    "favoritesOnly": "お気に入りのみ",
+    "resume": "職務経歴書",
+    "jobInfo": "求人情報",
+    "detail": "詳細",
+    "load": "読込",
     "createdAt": "作成日時: {{date}}",
     "view": "詳細を見る",
     "delete": "削除",
@@ -133,6 +153,35 @@
     "regenerate": "再生成",
     "favorite": "お気に入り",
     "unfavorite": "お気に入り解除"
+  },
+  "patterns": {
+    "title": "生成されたパターンから選択してください",
+    "description": "{{count}}個の異なる表現パターンを生成しました。最適なものを選択してください。",
+    "sortByScore": "スコア順にソート",
+    "evaluating": "AI評価中...",
+    "pattern": "パターン {{number}}",
+    "selected": "選択中",
+    "aiScore": "AI評価スコア",
+    "relevance": "関連性",
+    "clarity": "明確性",
+    "impact": "インパクト",
+    "completeness": "完全性",
+    "feedback": "改善提案",
+    "saveToFavorites": "お気に入りに保存"
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "description": "以下のショートカットを使用して、より効率的に操作できます。"
+  },
+  "apiKeyError": {
+    "title": "APIキーが設定されていません",
+    "description": "AI機能を使用するには、APIキーの設定が必要です。",
+    "message": "現在、OpenAI、Gemini、ClaudeのいずれのAPIキーも設定されていません。以下の手順でAPIキーを設定してください：",
+    "step1": "「API設定ページへ」ボタンをクリック",
+    "step2": "使用したいAIプロバイダー（OpenAI / Gemini / Claude）を選択",
+    "step3": "APIキーを入力して保存",
+    "helpTitle": "APIキーの取得方法がわからない場合：",
+    "helpMessage": "ガイドページに各プロバイダーのAPIキー取得方法を詳しく説明しています。"
   },
   "favorites": {
     "title": "お気に入り",
